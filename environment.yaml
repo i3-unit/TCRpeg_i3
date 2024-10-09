@@ -1,0 +1,16 @@
+name: tcrpeg_env
+channels:
+  - defaults
+  - conda-forge
+  - bioconda
+dependencies:
+  - python
+  - numpy
+  - pandas
+  - scikit-learn
+  - snakemake
+  - pip
+  - pip:
+      - tcrpeg
+
+#todo add version numbers to dependencies

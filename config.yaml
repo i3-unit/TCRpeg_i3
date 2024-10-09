@@ -1,0 +1,19 @@
+# config.yaml
+input_path: "sample_data/PLN-26-amTregs-TRB.csv"
+# output_dirs:
+#   - "results"
+output_dir: "results"
+device: "cpu"
+seq_col: "sequence"
+count_col: "count"
+id_col: "id"
+word2vec_epochs: 10
+epochs: 20
+word2vec_batch_size: 100
+word2vec_learning_rate: 0.0001
+hidden_size: 128
+num_layers: 5
+batch_size: 100
+learning_rate: 0.0001
+test_size: 0.2
+log_filename: "tcrpeg_p-infer.log"
