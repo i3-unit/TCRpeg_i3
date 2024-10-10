@@ -59,7 +59,7 @@ for file in "$input_dir"/*.csv; do
     echo "Processing $file"
     # Run tcrpeg infer on the file
     sample_name=$(basename "$file" .csv)
-    python i3_scripts/tcrpeg_p_infer.py \
+    python3 i3_scripts/tcrpeg_p_infer.py \
       --input "$file" \
       --output "$output_dir" \
       --device "${device:-cpu}" \
