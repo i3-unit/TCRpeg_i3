@@ -6,6 +6,10 @@ channels:
 dependencies:
   - python
   - numpy
+  - seaborn
+  - matplotlib
+  - tqdm
+  - torch
   - pandas
   - scikit-learn
   - snakemake
