@@ -130,7 +130,13 @@ class TCRpegModel:
 
         # Save the structured array
         # np.save(f'{self.output_dir}/{self.input_name}_p_infer_structured.npy', structured_array)
-        
+     
+    def calculate_embeddings(self):
+        # Calculate embeddings for each sequence
+        embeddings = self.model.get_embedding(self.sequences)
+        np.save(f'{self.p_infer_dir}/{self.input_name}_embeddings.npy', embeddings)        
+
+  
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
             word2vec_epochs=10, word2vec_batch_size=100, word2vec_learning_rate=1e-4,
             hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
@@ -142,6 +148,7 @@ class TCRpegModel:
         self.train_model(hidden_size=hidden_size, num_layers=num_layers, epochs=epochs, batch_size=batch_size,
                         learning_rate=learning_rate)
         self.probability_inference()
+        self.calculate_embeddings()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TCRpeg classification model.')
