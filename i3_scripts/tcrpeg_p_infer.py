@@ -9,14 +9,18 @@ from sklearn import model_selection
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 
-# Add the parent directory to the sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'tcrpeg')))
+
+# # Add the parent directory to the sys.path
+# sys.path.append(os.path.abspath(os.path.join(os.path.abspath(__file__), '..', 'TCRpeg_i3/tcrpeg')))
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'TCRpeg_i3')))
+
 
 from tcrpeg.TCRpeg import TCRpeg
 from tcrpeg.word2vec import word2vec
 from tcrpeg.evaluate import evaluation
+from i3_scripts.utils import load_data
 
-from utils import load_data
+#from utils import load_data
 
 # Function to configure logging
 def configure_logging(log_file):
