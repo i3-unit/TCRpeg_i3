@@ -9,6 +9,9 @@ from sklearn import model_selection
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 
+# Add the parent directory to the sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'tcrpeg')))
+
 from tcrpeg.TCRpeg import TCRpeg
 from tcrpeg.word2vec import word2vec
 from tcrpeg.evaluate import evaluation
@@ -44,6 +47,23 @@ class TCRpegModel:
         self.sequences_test = None
         self.model = None
 
+    def prepare_directories_and_filenames(self):
+        # Create the output directory if it doesn't exist
+        os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Define subdirectories
+        self.p_infer_dir = os.path.join(self.output_dir, "p_infer")
+        self.embeddings_dir = os.path.join(self.output_dir, "embeddings")
+        self.models_dir = os.path.join(self.output_dir, "models")
+        
+        # Create subdirectories if they don't exist
+        os.makedirs(self.p_infer_dir, exist_ok=True)
+        os.makedirs(self.embeddings_dir, exist_ok=True)
+        os.makedirs(self.models_dir, exist_ok=True)
+        
+        # Extract the input file name without extension
+        self.input_name = os.path.splitext(os.path.basename(self.input_file))[0]
+        
     def load_and_preprocess_data(self, seq_col='sequence', id_col='id', count_col='count'):
         self.data = load_data(self.input_file)
         self.sequences = self.data[seq_col].values
@@ -54,15 +74,11 @@ class TCRpegModel:
         # Check if id and count are present in the data
         self.id = self.data[id_col].values if id_col in self.data.columns else np.arange(len(self.data))
         self.count = self.data[count_col].values if count_col in self.data.columns else np.arange(len(self.data))
-        
-        os.makedirs(self.output_dir, exist_ok=True)
-
-        self.input_name = os.path.splitext(os.path.basename(self.input_file))[0]
 
     def split_data(self, test_size=0.2):
         # Perform train-test split and get indices
         self.sequences_train, self.sequences_test, train_idx, test_idx = train_test_split(
-            self.sequences, range(len(self.sequences)), test_size=0.2, random_state=42)
+            self.sequences, range(len(self.sequences)), test_size=test_size, random_state=42)
 
         # Log info about the split
         logging.info(f"Train size: {len(self.sequences_train)}")
@@ -81,16 +97,16 @@ class TCRpegModel:
                                batch_size=batch_size,
                                device=self.device, lr=learning_rate,
                                window_size=3,
-                               record_path=f'{self.output_dir}/{self.input_name}_aa.txt')
+                               record_path=f'{self.embeddings_dir}/{self.input_name}_aa.txt')
 
     def train_model(self, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
         self.model = TCRpeg(hidden_size=hidden_size, num_layers=num_layers, load_data=True, max_length=50,
-                            embedding_path=f'{self.output_dir}/{self.input_name}_aa.txt',
+                            embedding_path=f'{self.embeddings_dir}/{self.input_name}_aa.txt',
                             path_train=self.sequences_train, device=self.device)
         
         self.model.create_model()
         self.model.train_tcrpeg(epochs=epochs, batch_size=batch_size, lr=learning_rate)
-        self.model.save(f'{self.output_dir}/{self.input_name}.pth')
+        self.model.save(f'{self.models_dir}/{self.input_name}.pth')
 
     def probability_inference(self):
         eva = evaluation(model=self.model)
@@ -98,7 +114,7 @@ class TCRpegModel:
         r,p_data,p_infer = eva.eva_prob(path=self.data_test)
         print(p_data.shape, p_infer.shape)
 
-        np.save(f'{self.output_dir}/{self.input_name}_p_infer.npy', p_infer)        
+        np.save(f'{self.p_infer_dir}/{self.input_name}_p_infer.npy', p_infer)        
 
          # Create a structured array with sequence, id and p_infer
         # structured_array = np.zeros(len(self.sequences_test),
@@ -113,6 +129,7 @@ class TCRpegModel:
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
             word2vec_epochs=10, word2vec_batch_size=100, word2vec_learning_rate=1e-4,
             hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
+        self.prepare_directories_and_filenames()
         self.load_and_preprocess_data(seq_col=seq_col, id_col=id_col, count_col=count_col)
         self.split_data(test_size=test_size)
         self.train_word2vec(epochs=word2vec_epochs, batch_size=word2vec_batch_size,

@@ -12,15 +12,15 @@ device="cpu"
 seq_col="sequence"
 count_col="count"
 id_col="id"
-word2vec_epochs=10
+word2vec_epochs=50
 epochs=20
-word2vec_batch_size=100
+word2vec_batch_size=32
 word2vec_learning_rate=1e-4
 hidden_size=128
 num_layers=5
-batch_size=100
+batch_size=32
 learning_rate=1e-4
-test_size=0.2
+test_size=0.4
 
 # Parse command-line options
 while getopts 'i:o:d:s:c:I:w:e:b:l:H:n:B:L:t:h' flag; do
@@ -52,6 +52,7 @@ if [ -z "$input_dir" ] || [ -z "$output_dir" ]; then
 fi
 
 mkdir -p "$output_dir"
+mkdir -p "$output_dir"/logs
 
 # Loop through all files in the input directory
 for file in "$input_dir"/*.csv; do
@@ -75,6 +76,6 @@ for file in "$input_dir"/*.csv; do
       --batch_size "${batch_size:-100}" \
       --learning_rate "${learning_rate:-1e-4}" \
       --test_size "${test_size:-0.2}" \
-      --log "$output_dir/${sample_name}_tcrpeg_p_infer.log"
+      --log "$output_dir/logs/${sample_name}_tcrpeg_p_infer.log"
   fi
 done
