@@ -6,11 +6,12 @@ channels:
 dependencies:
   - python
   - numpy
+  - seaborn
+  - matplotlib
+  - tqdm
+  - torch
   - pandas
   - scikit-learn
   - snakemake
   - pip
-  - pip:
-      - tcrpeg
-
 #todo add version numbers to dependencies
