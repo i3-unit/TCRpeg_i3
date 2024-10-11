@@ -14,7 +14,7 @@ from sklearn.utils import resample
 # # Add the parent directory to the sys.path
 # sys.path.append(os.path.abspath(os.path.join(os.path.abspath(__file__), '..', 'TCRpeg_i3/tcrpeg')))
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'TCRpeg_i3')))
-
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'i3_scripts')))
 
 from tcrpeg.TCRpeg import TCRpeg
 from tcrpeg.word2vec import word2vec
@@ -138,12 +138,12 @@ class TCRpegModel:
         np.save(f'{self.embeddings_dir}/{self.input_name}_embeddings.npy', embeddings)        
 
         # Create a structured array with sequence, id and p_infer
-        structured_array = np.zeros(len(self.sequences),
-                                    dtype=[('sequence', 'U50'), ('embeddings', 'f4')])
-        structured_array['sequence'] = self.sequences
-        structured_array['embeddings'] = embeddings
-        # Save the structured array
-        np.save(f'{self.embeddings_dir}/{self.input_name}_seq_embeddings.npy', structured_array)
+        # structured_array = np.zeros(len(self.sequences),
+        #                             dtype=[('sequence', 'U50'), ('embeddings', 'f4')])
+        # structured_array['sequence'] = self.sequences
+        # structured_array['embeddings'] = embeddings
+        # # Save the structured array
+        # np.save(f'{self.embeddings_dir}/{self.input_name}_seq_embeddings.npy', structured_array)
      
   
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
