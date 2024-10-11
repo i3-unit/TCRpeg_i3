@@ -143,7 +143,7 @@ class TCRpegModel:
         structured_array['sequence'] = self.sequences
         structured_array['embeddings'] = embeddings
         # Save the structured array
-        np.save(f'{self.output_dir}/{self.input_name}_p_seq_embeddings.npy', structured_array)
+        np.save(f'{self.embeddings_dir}/{self.input_name}_seq_embeddings.npy', structured_array)
      
   
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
