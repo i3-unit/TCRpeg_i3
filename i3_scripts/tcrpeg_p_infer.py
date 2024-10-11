@@ -134,8 +134,17 @@ class TCRpegModel:
     def calculate_embeddings(self):
         # Calculate embeddings for each sequence
         embeddings = self.model.get_embedding(self.sequences)
+        reduced_embeddings = np.mean(embeddings, axis=1)
         np.save(f'{self.p_infer_dir}/{self.input_name}_embeddings.npy', embeddings)        
 
+        # Create a structured array with sequence, id and p_infer
+        structured_array = np.zeros(len(self.sequences),
+                                    dtype=[('sequence', 'U50'), ('embeddings', 'f4')])
+        structured_array['sequence'] = self.sequences
+        structured_array['embeddings'] = embeddings
+        # Save the structured array
+        np.save(f'{self.output_dir}/{self.input_name}_p_seq_embeddings.npy', structured_array)
+     
   
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
             word2vec_epochs=10, word2vec_batch_size=100, word2vec_learning_rate=1e-4,
