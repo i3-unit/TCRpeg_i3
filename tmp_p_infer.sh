@@ -5,6 +5,10 @@
 # Display help message from the Python script
 # python i3_scripts/tcrpeg_p_infer.py -h
 
+# Extract current directory
+script_dir=$(dirname "$0")
+echo "Running script from $script_dir"
+
 # Set default values for command-line options
 input_dir=""
 output_dir=""
@@ -12,7 +16,7 @@ device="cpu"
 seq_col="sequence"
 count_col="count"
 id_col="id"
-word2vec_epochs=50
+word2vec_epochs=10
 epochs=20
 word2vec_batch_size=32
 word2vec_learning_rate=1e-4
@@ -60,7 +64,7 @@ for file in "$input_dir"/*.csv; do
     echo "Processing $file"
     # Run tcrpeg infer on the file
     sample_name=$(basename "$file" .csv)
-    python3 i3_scripts/tcrpeg_p_infer.py \
+    python3 ${script_dir}/i3_scripts/tcrpeg_p_infer.py \
       --input "$file" \
       --output "$output_dir" \
       --device "${device:-cpu}" \
