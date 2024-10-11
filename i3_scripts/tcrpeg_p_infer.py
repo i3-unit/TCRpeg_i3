@@ -135,7 +135,7 @@ class TCRpegModel:
         # Calculate embeddings for each sequence
         embeddings = self.model.get_embedding(self.sequences)
         reduced_embeddings = np.mean(embeddings, axis=1)
-        np.save(f'{self.p_infer_dir}/{self.input_name}_embeddings.npy', embeddings)        
+        np.save(f'{self.embeddings_dir}/{self.input_name}_embeddings.npy', embeddings)        
 
         # Create a structured array with sequence, id and p_infer
         structured_array = np.zeros(len(self.sequences),
