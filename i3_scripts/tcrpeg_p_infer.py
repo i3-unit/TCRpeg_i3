@@ -139,9 +139,9 @@ class TCRpegModel:
 
         Create a structured array with sequence, id and p_infer
         structured_array = np.zeros(len(self.sequences),
-                                    dtype=[('sequence', 'U50'), ('embeddings', 'f4')])
+                                    dtype=[('sequence', 'U50'), ('embeddings', 'f4', (640,))])
         structured_array['sequence'] = self.sequences
-        structured_array['embeddings'] = embeddings[:,0]
+        structured_array['embeddings'] = embeddings
         # Save the structured array
         np.save(f'{self.embeddings_dir}/{self.input_name}_seq_embeddings.npy', structured_array)
      
