@@ -11,15 +11,18 @@ from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 
 
-# # Add the parent directory to the sys.path
+# Add the parent directory to the sys.path
 # sys.path.append(os.path.abspath(os.path.join(os.path.abspath(__file__), '..', 'TCRpeg_i3/tcrpeg')))
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'TCRpeg_i3')))
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'i3_scripts')))
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '.', 'i3_scripts')))
+
+# Debug: Print sys.path to verify the paths
+# print("sys.path:", sys.path)
 
 from tcrpeg.TCRpeg import TCRpeg
 from tcrpeg.word2vec import word2vec
 from tcrpeg.evaluate import evaluation
-from i3_scripts.utils import load_data
+from utils import load_data
 
 #from utils import load_data
 
