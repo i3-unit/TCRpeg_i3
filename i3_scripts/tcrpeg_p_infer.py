@@ -14,7 +14,7 @@ from sklearn.utils import resample
 # Add the parent directory to the sys.path
 # sys.path.append(os.path.abspath(os.path.join(os.path.abspath(__file__), '..', 'TCRpeg_i3/tcrpeg')))
 sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'TCRpeg_i3')))
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '.', 'i3_scripts')))
+# sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '.', 'i3_scripts')))
 
 # Debug: Print sys.path to verify the paths
 # print("sys.path:", sys.path)
@@ -144,7 +144,7 @@ class TCRpegModel:
         structured_array = np.zeros(len(self.sequences),
                                     dtype=[('id', 'U50'), ('sequence', 'U100'), ('embeddings', 'f4', (640,))])
         
-        structured_array['id'] = np.arange(len(sequences))
+        structured_array['id'] = np.arange(len(self.sequences))
         structured_array['sequence'] = self.sequences
         structured_array['embedding'] = embeddings
         # Save the structured array
