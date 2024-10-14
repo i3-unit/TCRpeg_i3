@@ -137,7 +137,7 @@ class TCRpegModel:
         reduced_embeddings = np.mean(embeddings, axis=1)
         np.save(f'{self.embeddings_dir}/{self.input_name}_embeddings.npy', embeddings)        
 
-        Create a structured array with sequence, id and p_infer
+        #Create a structured array with sequence, id and p_infer
         structured_array = np.zeros(len(self.sequences),
                                     dtype=[('sequence', 'U50'), ('embeddings', 'f4', (640,))])
         structured_array['sequence'] = self.sequences
