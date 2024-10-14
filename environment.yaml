@@ -13,5 +13,6 @@ dependencies:
   - pandas
   - scikit-learn
   - snakemake
-  - pip
+  - pip:
+      - torch >= 1.1.0
 #todo add version numbers to dependencies
