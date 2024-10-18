@@ -84,6 +84,7 @@ class TCRpegModel:
         self.count = self.data[count_col].values if count_col in self.data.columns else np.arange(len(self.data))
 
     def split_data(self, test_size=0.2):
+        logging.info("Splitting data...")
         # Perform train-test split and get indices
         self.sequences_train, self.sequences_test, train_idx, test_idx = train_test_split(
             self.sequences, range(len(self.sequences)), test_size=test_size, random_state=42)
@@ -101,13 +102,16 @@ class TCRpegModel:
         self.data_test['id'] = self.id[test_idx]
 
     def train_word2vec(self, epochs=10, batch_size=100, learning_rate=1e-4):
+        logging.info("Training Word2Vec model...")
         self.aa_emb = word2vec(path=self.sequences_train, epochs=epochs,
                                batch_size=batch_size,
                                device=self.device, lr=learning_rate,
                                window_size=3,
                                record_path=f'{self.embeddings_dir}/{self.input_name}_aa.txt')
+        logging.info("Word2Vec model trained successfully.")
 
     def train_model(self, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
+        logging.info("Training TCRpeg model...")
         self.model = TCRpeg(hidden_size=hidden_size, num_layers=num_layers, load_data=True, max_length=50,
                             embedding_path=f'{self.embeddings_dir}/{self.input_name}_aa.txt',
                             path_train=self.sequences_train, device=self.device)
@@ -115,14 +119,19 @@ class TCRpegModel:
         self.model.create_model()
         self.model.train_tcrpeg(epochs=epochs, batch_size=batch_size, lr=learning_rate)
         self.model.save(f'{self.models_dir}/{self.input_name}.pth')
+        logging.info("TCRpeg model trained successfully.")
 
     def probability_inference(self):
+        logging.info("Performing probability inference...")
         eva = evaluation(model=self.model)
 
         r,p_data,p_infer = eva.eva_prob(path=self.data_test)
-        print(p_data.shape, p_infer.shape)
 
-        np.save(f'{self.p_infer_dir}/{self.input_name}_p_infer.npy', p_infer)        
+        logging.info(f"Pearson correlation coefficient are : {r}")
+
+        np.save(f'{self.p_infer_dir}/{self.input_name}_p_infer.npy', p_infer)    
+
+        logging.info("Probability inference completed successfully.")    
 
          # Create a structured array with sequence, id and p_infer
         # structured_array = np.zeros(len(self.sequences_test),
@@ -135,22 +144,23 @@ class TCRpegModel:
         # np.save(f'{self.output_dir}/{self.input_name}_p_infer_structured.npy', structured_array)
      
     def calculate_embeddings(self):
+        logging.info("Calculating embeddings...")
         # Calculate embeddings for each sequence
         embeddings = self.model.get_embedding(self.sequences)
         reduced_embeddings = np.mean(embeddings, axis=1)
-        np.save(f'{self.embeddings_dir}/{self.input_name}_embeddings.npy', embeddings)        
+        np.save(f'{self.embeddings_dir}/{self.input_name}_raw_embeddings.npy', embeddings)        
 
         #Create a structured array with sequence, id and p_infer
         structured_array = np.zeros(len(self.sequences),
-                                    dtype=[('id', 'U50'), ('sequence', 'U100'), ('embeddings', 'f4', (640,))])
+                                    dtype=[('id', 'U50'), ('sequence', 'U100'), ('embedding', 'f4', (640,))])
         
         structured_array['id'] = np.arange(len(self.sequences))
         structured_array['sequence'] = self.sequences
         structured_array['embedding'] = embeddings
         # Save the structured array
-        np.save(f'{self.embeddings_dir}/{self.input_name}_seq_embeddings.npy', structured_array)
-     
-  
+        np.save(f'{self.embeddings_dir}/{self.input_name}_structured_embeddings.npy', structured_array)
+        logging.info("Embeddings calculated successfully.")
+
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
             word2vec_epochs=10, word2vec_batch_size=100, word2vec_learning_rate=1e-4,
             hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
@@ -203,6 +213,8 @@ if __name__ == "__main__":
 
     # Configure logging with the specified log file name
     print(f"Writing logs to {args.log}")
+    # Remove log file 
+    os.remove(args.log) if os.path.exists(args.log) else None
     configure_logging(args.log)
 
     logging.info("Starting TCRpegModel probability inference")
