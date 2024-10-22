@@ -213,6 +213,17 @@ class EmbeddingHandler():
 
         return None
 
+    def set_clusters(self, clusters, cluster_name='cluster'):
+        if self.metadata is None:
+            self.metadata = pd.DataFrame({cluster_name: clusters})
+        else:
+            self.metadata[cluster_name] = clusters
+
+    def update_metadata(self, data_to_add, column_name):
+        if self.metadata is None:
+            self.metadata = pd.DataFrame({'id': self.ids})
+        self.metadata[column_name] = data_to_add
+
     def get_embeddings(self):
         return self.embeddings
     
