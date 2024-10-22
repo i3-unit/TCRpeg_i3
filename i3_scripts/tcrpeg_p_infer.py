@@ -125,12 +125,12 @@ class TCRpegModel:
         self.model.save(f'{self.models_dir}/{self.input_name}.pth')
         logging.info("TCRpeg model trained successfully.")
 
-    def probability_inference(self, min_occurrence=1):
+    def probability_inference(self, min_count=1):
         logging.info("Performing probability inference...")
 
         eva = evaluation(model=self.model)
 
-        r, p_data, p_infer, p_infer_annotated = eva.eva_prob(path=self.data_test, min_occurrence=min_occurrence)
+        r, p_data, p_infer, p_infer_annotated = eva.eva_prob(path=self.data_test, min_occurrence=min_count)
 
         logging.info(f"Pearson correlation coefficient are : {r}")
 
@@ -165,7 +165,8 @@ class TCRpegModel:
 
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
             word2vec_epochs=10, word2vec_batch_size=100, word2vec_learning_rate=1e-4,
-            hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
+            hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4,
+            min_count=1):
         self.prepare_directories_and_filenames()
         self.load_and_preprocess_data(seq_col=seq_col, id_col=id_col, count_col=count_col)
         self.split_data(test_size=test_size)
@@ -173,7 +174,7 @@ class TCRpegModel:
                             learning_rate=word2vec_learning_rate)
         self.train_model(hidden_size=hidden_size, num_layers=num_layers, epochs=epochs, batch_size=batch_size,
                         learning_rate=learning_rate)
-        self.probability_inference()
+        self.probability_inference(min_count=min_count)
         self.calculate_embeddings()
 
 if __name__ == "__main__":
@@ -207,6 +208,8 @@ if __name__ == "__main__":
                         type=float, default=1e-4)
     parser.add_argument('--test_size', help='Test size for train-test split (default: 0.2)',
                         type=float, default=0.2)
+    parser.add_argument('--min_count', help='Minimum count for probability inference (default: 1)',
+                        type=float, default=1)
     parser.add_argument('--log', help='Log file to save logs (default: tcrpeg_p-infer.log)',
                         default='tcrpeg_p-infer.log')
 
@@ -232,6 +235,7 @@ if __name__ == "__main__":
     model_infer.run(test_size=args.test_size, word2vec_epochs=args.word2vec_epochs,
                     word2vec_batch_size=args.word2vec_batch_size, word2vec_learning_rate=args.word2vec_learning_rate,
                     hidden_size=args.hidden_size, num_layers=args.num_layers, epochs=args.epochs,
-                    batch_size=args.batch_size, learning_rate=args.learning_rate)
+                    batch_size=args.batch_size, learning_rate=args.learning_rate,
+                    min_count=args.min_count)
     
     logging.info("Model training and inference completed successfully.")
