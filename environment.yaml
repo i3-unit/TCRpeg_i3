@@ -13,6 +13,9 @@ dependencies:
   - scikit-learn
   - scipy
   - snakemake
+  - kneed
+  - umap
+  - plotly
   - pip
   - pip:
       - torch >= 1.1.0
