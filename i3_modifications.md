@@ -5,3 +5,6 @@ Enhancements:
 1. install snakemake (using either pip or conda)
 mamba create -n some-env -c conda-forge bioconda::snakemake (Recommended)
 pip install snakemake 
+
+2. install current python packages 
+pip install -e .  
