@@ -82,4 +82,4 @@ for file in "$input_dir"/*.csv; do
       --test_size "${test_size:-0.2}" \
       --log "$output_dir/logs/${sample_name}_tcrpeg_p_infer.log"
   fi
-d
+done
