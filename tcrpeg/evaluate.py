@@ -78,8 +78,4 @@ class evaluation:
                 seq_with_record.extend(list(zip(seq_batch, np.exp(log_probs))))
         record_sum = np.sum(record)
         record = record/record_sum
-        seq_with_record = [(seq, prob/record_sum) for seq, prob in seq_with_record]
-        # kl = kl_divergence(p_data,record)
-        corr = stats.pearsonr(p_data,record)[0]
-        print('Pearson correlation coefficient are : {}'.format(str(round(corr,4))))
-        return corr, p_data, record, seq_with_record
+        seq_with_record = [(seq, prob/record_sum) for seq, prob in seq
