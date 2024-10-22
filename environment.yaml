@@ -11,6 +11,7 @@ dependencies:
   - tqdm
   - pandas
   - scikit-learn
+  - scipy
   - snakemake
   - pip
   - pip:
