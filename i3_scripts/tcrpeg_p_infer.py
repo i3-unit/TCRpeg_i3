@@ -42,6 +42,7 @@ def configure_logging(log_file):
 
 np.random.seed(222)
 
+#todo check if better to separate model and p_infer in two classes
 class TCRpegModel:
     def __init__(self, input_file, output_dir, device='cpu'):
         self.input_file = input_file
