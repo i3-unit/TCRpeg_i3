@@ -150,7 +150,7 @@ class UMAPGenerator():
                 self.metadata[self.key_metadata] = self.metadata[self.key_metadata].astype('str')
                 self.umap_data = self.umap_data.merge(self.metadata, left_on='id', right_on=self.key_metadata, how='left')
             except:
-                print("Warning: Metadata not merged with UMAP data.")
+                logging.warning("Metadata not merged with UMAP data.")
 
     def plot_umap(self, ax=None, hue=None, palette=None, s=20, alpha=1.0, show=True,  output_file=None):
         num_dimensions = self.embeddings_reduced.shape[1]
