@@ -66,6 +66,8 @@ class TCRpegModel:
         
         # Create subdirectories if they don't exist
         os.makedirs(self.p_infer_dir, exist_ok=True)
+        os.makedirs(f"{self.p_infer_dir}/raw", exist_ok=True)
+        os.makedirs(f"{self.p_infer_dir}/structured", exist_ok=True)
         os.makedirs(self.embeddings_dir, exist_ok=True)
         os.makedirs(self.models_dir, exist_ok=True)
         
@@ -80,10 +82,10 @@ class TCRpegModel:
         self.data.columns = map(str.lower, self.data.columns)
 
         # Check if id and count are present in the data
-        self.id = self.data[id_col].values if id_col in self.data.columns else np.arange(len(self.data))
+        self.ids = self.data[id_col].values if id_col in self.data.columns else np.arange(len(self.data))
         self.count = self.data[count_col].values if count_col in self.data.columns else np.arange(len(self.data))
 
-        # self.id_mapping = dict(zip(self.id, self.sequences))
+        self.id_seq_dict = dict(zip(self.sequences, self.ids))
 
     def split_data(self, test_size=0.2):
         logging.info("Splitting data...")
@@ -101,7 +103,7 @@ class TCRpegModel:
             'count': np.array(self.count)[test_idx]
         }
 
-        self.data_test['id'] = self.id[test_idx]
+        self.data_test['id'] = self.ids[test_idx]
 
     def train_word2vec(self, epochs=10, batch_size=100, learning_rate=1e-4):
         logging.info("Training Word2Vec model...")
@@ -125,20 +127,23 @@ class TCRpegModel:
 
     def probability_inference(self, min_occurrence=1):
         logging.info("Performing probability inference...")
+
         eva = evaluation(model=self.model)
 
         r, p_data, p_infer, p_infer_annotated = eva.eva_prob(path=self.data_test, min_occurrence=min_occurrence)
 
         logging.info(f"Pearson correlation coefficient are : {r}")
 
-        np.save(f'{self.p_infer_dir}/{self.input_name}_p_infer.npy', p_infer)    
+        np.save(f'{self.p_infer_dir}/raw/{self.input_name}_p_infer.npy', p_infer)    
 
         logging.info("Probability inference completed successfully.")    
 
-        # Create a structured array with sequence and p_infer
-        structured_array = np.array(p_infer_annotated, dtype=[('sequence', 'U100'), ('p_infer', 'f8')])
+        p_infer_annotated_ids = list(map(lambda x: (self.id_seq_dict.get(x[0], None), x[0], x[1]), p_infer_annotated))
 
-        np.save(f'{self.p_infer_dir}/{self.input_name}_structured_p_infer.npy', structured_array)
+        # Create a structured array with sequence and p_infer
+        structured_array = np.array(p_infer_annotated_ids, dtype=[('id', 'U50'), ('sequence', 'U100'), ('p_infer', 'f8')])
+
+        np.save(f'{self.p_infer_dir}/structured/{self.input_name}_structured_p_infer.npy', structured_array)
 
     def calculate_embeddings(self):
         logging.info("Calculating embeddings...")
