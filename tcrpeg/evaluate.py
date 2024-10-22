@@ -41,7 +41,7 @@ class evaluation:
         else :
             return self.model.generate_tcrpeg(num,batch_size)
 
-    def eva_prob(self,path,whole=False):
+    def eva_prob(self,path,whole=False, min_occurrence=1):
         #if whole=True, will return the r of the whole test set
         #sample 1e6 seqs for r estimation
         #path can be a csv file or a dict with keys of 'seq' and 'count'
@@ -58,7 +58,7 @@ class evaluation:
         c_data,seqs = [],[]
 
         for i in range(len(seqs_)):  #only need seqs that has appearance > 2
-            if c_data_[i] > 2:
+            if c_data_[i] >= min_occurrence:
                 c_data.append(c_data_[i])
                 seqs.append(seqs_[i])
         p_data = np.array(c_data)
@@ -68,15 +68,18 @@ class evaluation:
         batch_size = 2000
 
         record = np.zeros(len(seqs))
+        seq_with_record = []
         with torch.no_grad():        
             for i in tqdm(range(int(len(seqs)/batch_size)+1)):
                 end = len(seqs) if (i+1) * batch_size > len(seqs) else (i+1) * batch_size
                 seq_batch = seqs[i * batch_size : end]                
                 log_probs = self.model.sampling_tcrpeg(seq_batch) #change here
                 record[i*batch_size : end] = np.exp(log_probs)
+                seq_with_record.extend(list(zip(seq_batch, np.exp(log_probs))))
         record_sum = np.sum(record)
         record = record/record_sum
+        seq_with_record = [(seq, prob/record_sum) for seq, prob in seq_with_record]
         # kl = kl_divergence(p_data,record)
         corr = stats.pearsonr(p_data,record)[0]
         print('Pearson correlation coefficient are : {}'.format(str(round(corr,4))))
-        return corr,p_data,record
+        return corr, p_data, record, seq_with_record
