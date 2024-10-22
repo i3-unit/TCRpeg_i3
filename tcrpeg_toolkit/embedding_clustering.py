@@ -5,21 +5,71 @@ import torch
 import seaborn as sns
 import seaborn as sns
 from sklearn.cluster import KMeans
+from kneed import KneeLocator
 import faiss
 import argparse
 import logging
 from sklearn.metrics import silhouette_score
 
+from tcrpeg_toolkit.embedding_processor import EmbeddingHandler, Embedding
 
-# # Add the parent directory to the sys.path
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'TCRpeg_i3')))
+#todo change all the print to logging
+class OptimalClusterFinder:
+    def __init__(self, data, max_k=100, random_state=42):
+        """
+        Initialize the OptimalClusterFinder with the dataset.
+
+        Parameters:
+        - data: The dataset for which to find the optimal number of clusters.
+        - max_k: The maximum number of clusters to consider.
+        - random_state: Seed for reproducibility.
+        """
+        self.data = data
+        self.max_k = max_k
+        self.random_state = random_state
+
+    def find_optimal_clusters(self):
+        """
+        Finds the optimal number of clusters (k) for KMeans clustering using the elbow method.
+
+        Returns:
+        - An integer indicating the optimal number of clusters based on the elbow method.
+        """
+        n_samples = self.data.shape[0]
+        
+        # Adjust the maximum number of clusters based on the rule of thumb if necessary
+        rule_of_thumb_k = int(np.sqrt(n_samples / 2))
+        max_k = min(self.max_k, rule_of_thumb_k)
+        
+        inertias = []
+        k_values = range(1, max_k + 1)
+
+        for k in k_values:
+            kmeans = KMeans(n_clusters=k, random_state=self.random_state).fit(self.data)
+            inertias.append(kmeans.inertia_)
+
+        # Use the KneeLocator to find the elbow point
+        knee_locator = KneeLocator(k_values, inertias, curve='convex', direction='decreasing')
+
+        optimal_k = knee_locator.elbow
+        print(f"Based on the rule of thumb, the maximum number of clusters k should be ≤ {rule_of_thumb_k}.")
+        print(f"The optimal number of clusters k based on the elbow method is {optimal_k}.")
+        
+        if optimal_k is None:
+            print("Warning: The elbow point could not be found. Returning the maximum number of clusters.")
+            optimal_k = max_k
+        
+        return optimal_k
 
 class EmbeddingClustering:
-    def __init__(self, input_file, output_dir, device='cpu'):
-        self.input_file = input_file 
+    def __init__(self, data, output_dir=None, device='cpu'):
+        self.data = data 
         self.output_dir = output_dir
         self.device = device
-        self.data = None
+        self.embedding_handler = None
+        self.embeddings = None
+        self.ids = None
+        self.sequences = None
         
     def prepare_directories_and_filenames(self):
         # Create the analysis output directory if it doesn't exist
@@ -30,11 +80,21 @@ class EmbeddingClustering:
         # Extract the input file name without extension
         self.input_name = os.path.basename(self.input_file).split('_embeddings.npy')[0]
 
-    # add elbow method
-    
-    def read_embeddings_files(self):
-        self.data = np.load(self.input_file)
-        self.input_name = os.path.basename(self.input_file).split('_embeddings.npy')[0]
+    def _get_embeddings(self):
+        required_attrs = ['embeddings', 'ids', 'sequences']
+        if not all(hasattr(self.data, attr) for attr in required_attrs):
+            self.embedding_handler= EmbeddingHandler(self.data)
+            self.embeddings = self.embedding_handler.get_embeddings()
+            self.ids = self.embedding_handler.get_ids()
+        else:
+            print("Loaded Embedding Object")
+            self.embeddings = self.data.embeddings
+            self.ids = self.data.ids
+            self.sequences = self.data.sequences
+
+    def optimal_cluster_finder(self):
+        optimal_cluster_finder = OptimalClusterFinder(self.data, max_k=100, random_state=42)
+        return optimal_cluster_finder.find_optimal_clusters()
                                         
     def faiss_clustering(self,  k=4, niter=10):
         #   Set up FAISS clustering
@@ -64,11 +124,14 @@ class EmbeddingClustering:
     def calculate_silhouette_score(self): ## Measures how similar a point is to its own cluster compared to other clusters.
         return silhouette_score(self.data, self.cluster_assignments)
  
-    def run(self, **kwargs):
+    def run(self, k=4, n_iter=10, optimal_cluster=True):
+        self.prepare_directories_and_filenames()
         self.read_embeddings_files()
-        self.faiss_clustering(**kwargs)
+        if optimal_cluster:
+            k = self.optimal_cluster_finder()
+        self.faiss_clustering(k=k, niter=n_iter)
         self.calculate_silhouette_score()
-        
+   
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Embedding clustering with Faiss')
     parser.add_argument('-i', '--input', help='Input file', required=True)
@@ -86,7 +149,7 @@ if __name__ == "__main__":
     if args.device == 'mps' and not torch.backends.mps.is_available():
         logging.warning("MPS device requested but not available. Falling back to CPU.")
         args.device = 'cpu'
-    
+
     cluster_embed = EmbeddingClustering(input_file=args.input, output_dir=args.output, device=args.device)
     cluster_embed.run(niter=args.iteration)
     
