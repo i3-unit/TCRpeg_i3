@@ -18,8 +18,8 @@ warnings.filterwarnings("ignore", message="n_jobs value -1 overridden to 1 by se
 # Suppress OpenMP info messages
 os.environ['OMP_DISPLAY_ENV'] = 'FALSE'
 
-from .utils import load_data
-from .embedding_processor import EmbeddingHandler, Embedding
+from tcrpeg_toolkit.utils import load_data
+from tcrpeg_toolkit.embedding_handler import EmbeddingHandler, Embedding
 
 class UMAPGenerator():
     def __init__(self, data, metadata=None, key_metadata='id'):

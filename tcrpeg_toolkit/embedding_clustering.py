@@ -11,7 +11,7 @@ import argparse
 import logging
 from sklearn.metrics import silhouette_score
 
-from tcrpeg_toolkit.embedding_processor import EmbeddingHandler, Embedding
+from tcrpeg_toolkit.embedding_handler import EmbeddingHandler, Embedding
 
 #todo change all the print to logging
 class OptimalClusterFinder:
@@ -70,15 +70,8 @@ class EmbeddingClustering:
         self.embeddings = None
         self.ids = None
         self.sequences = None
-        
-    def prepare_directories_and_filenames(self):
-        # Create the analysis output directory if it doesn't exist
-        os.makedirs(self.output_dir, exist_ok=True)
-        self.analysis_dir = os.path.join(self.output_dir, "analysis")
-        os.makedirs(self.analysis_dir, exist_ok=True)
-        
-        # Extract the input file name without extension
-        self.input_name = os.path.basename(self.input_file).split('_embeddings.npy')[0]
+
+        self._get_embeddings()
 
     def _get_embeddings(self):
         required_attrs = ['embeddings', 'ids', 'sequences']
@@ -87,13 +80,22 @@ class EmbeddingClustering:
             self.embeddings = self.embedding_handler.get_embeddings()
             self.ids = self.embedding_handler.get_ids()
         else:
-            print("Loaded Embedding Object")
+            logging.info("Loaded Embedding Object")
             self.embeddings = self.data.embeddings
             self.ids = self.data.ids
             self.sequences = self.data.sequences
 
+    # def prepare_directories_and_filenames(self):
+    #     # Create the analysis output directory if it doesn't exist
+    #     os.makedirs(self.output_dir, exist_ok=True)
+    #     self.analysis_dir = os.path.join(self.output_dir, "analysis")
+    #     os.makedirs(self.analysis_dir, exist_ok=True)
+        
+    #     # Extract the input file name without extension
+    #     self.input_name = os.path.basename(self.input_file).split('_embeddings.npy')[0]
+
     def optimal_cluster_finder(self):
-        optimal_cluster_finder = OptimalClusterFinder(self.data, max_k=100, random_state=42)
+        optimal_cluster_finder = OptimalClusterFinder(self.embeddings, max_k=100, random_state=42)
         return optimal_cluster_finder.find_optimal_clusters()
                                         
     def faiss_clustering(self,  k=4, niter=10):
@@ -108,13 +110,13 @@ class EmbeddingClustering:
         _, cluster_assignments = kmeans.index.search(self.data, 1)
         self.cluster_assignments = cluster_assignments.flatten()
 
-    def save_clusters_to_csv(self):
-        output_file = os.path.join(self.analysis_dir, f"{self.input_name}_clusters.csv")
-        df = pd.DataFrame({
-            'sequence': self.sequences,
-            'cluster_id': self.cluster_assignments
-        })
-        df.to_csv(output_file, index=False)
+    # def save_clusters_to_csv(self):
+    #     output_file = os.path.join(self.analysis_dir, f"{self.input_name}_clusters.csv")
+    #     df = pd.DataFrame({
+    #         'sequence': self.sequences,
+    #         'cluster_id': self.cluster_assignments
+    #     })
+    #     df.to_csv(output_file, index=False)
 
     # Silhouette Coefficient or silhouette score is a metric used to calculate the goodness of a clustering technique. Its value ranges from -1 to 1.
     # 1: Means clusters are well apart from each other and clearly distinguished.
