@@ -10,21 +10,14 @@ from sklearn import model_selection
 from sklearn.model_selection import train_test_split
 from sklearn.utils import resample
 
-
 # Add the parent directory to the sys.path
-# sys.path.append(os.path.abspath(os.path.join(os.path.abspath(__file__), '..', 'TCRpeg_i3/tcrpeg')))
-sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'TCRpeg_i3')))
-# sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '.', 'i3_scripts')))
-
-# Debug: Print sys.path to verify the paths
-# print("sys.path:", sys.path)
+# sys.path.append(os.path.abspath(os.path.join(os.getcwd(), '..', 'TCRpeg_i3')))
 
 from tcrpeg.TCRpeg import TCRpeg
 from tcrpeg.word2vec import word2vec
 from tcrpeg.evaluate import evaluation
-from utils import load_data
 
-#from utils import load_data
+from tcrpeg_toolkit.utils import load_data
 
 # Function to configure logging
 def configure_logging(log_file):
@@ -70,6 +63,8 @@ class TCRpegModel:
         os.makedirs(f"{self.p_infer_dir}/raw", exist_ok=True)
         os.makedirs(f"{self.p_infer_dir}/structured", exist_ok=True)
         os.makedirs(self.embeddings_dir, exist_ok=True)
+        os.makedirs(f"{self.embeddings_dir}/raw", exist_ok=True)
+        os.makedirs(f"{self.embeddings_dir}/structured", exist_ok=True)
         os.makedirs(self.models_dir, exist_ok=True)
         
         # Extract the input file name without extension
@@ -151,7 +146,7 @@ class TCRpegModel:
         # Calculate embeddings for each sequence
         embeddings = self.model.get_embedding(self.sequences)
         reduced_embeddings = np.mean(embeddings, axis=1)
-        np.save(f'{self.embeddings_dir}/{self.input_name}_raw_embeddings.npy', embeddings)        
+        np.save(f'{self.embeddings_dir}/raw/{self.input_name}_raw_embeddings.npy', embeddings)        
 
         #Create a structured array with sequence, id and p_infer
         structured_array = np.zeros(len(self.sequences),
@@ -161,7 +156,7 @@ class TCRpegModel:
         structured_array['sequence'] = self.sequences
         structured_array['embedding'] = embeddings
         # Save the structured array
-        np.save(f'{self.embeddings_dir}/{self.input_name}_structured_embeddings.npy', structured_array)
+        np.save(f'{self.embeddings_dir}/structured/{self.input_name}_structured_embeddings.npy', structured_array)
         logging.info("Embeddings calculated successfully.")
 
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
