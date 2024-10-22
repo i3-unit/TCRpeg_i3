@@ -83,6 +83,8 @@ class TCRpegModel:
         self.id = self.data[id_col].values if id_col in self.data.columns else np.arange(len(self.data))
         self.count = self.data[count_col].values if count_col in self.data.columns else np.arange(len(self.data))
 
+        # self.id_mapping = dict(zip(self.id, self.sequences))
+
     def split_data(self, test_size=0.2):
         logging.info("Splitting data...")
         # Perform train-test split and get indices
@@ -121,11 +123,11 @@ class TCRpegModel:
         self.model.save(f'{self.models_dir}/{self.input_name}.pth')
         logging.info("TCRpeg model trained successfully.")
 
-    def probability_inference(self):
+    def probability_inference(self, min_occurrence=1):
         logging.info("Performing probability inference...")
         eva = evaluation(model=self.model)
 
-        r,p_data,p_infer = eva.eva_prob(path=self.data_test)
+        r, p_data, p_infer, p_infer_annotated = eva.eva_prob(path=self.data_test, min_occurrence=min_occurrence)
 
         logging.info(f"Pearson correlation coefficient are : {r}")
 
@@ -133,16 +135,11 @@ class TCRpegModel:
 
         logging.info("Probability inference completed successfully.")    
 
-         # Create a structured array with sequence, id and p_infer
-        # structured_array = np.zeros(len(self.sequences_test),
-        #                             dtype=[('sequence', 'U50'), ('id', 'U50'), ('p_infer', 'f4')])
-        # structured_array['sequence'] = self.sequences_test
-        # structured_array['id'] = self.data_test['id']
-        # structured_array['p_infer'] = p_infer
+        # Create a structured array with sequence and p_infer
+        structured_array = np.array(p_infer_annotated, dtype=[('sequence', 'U100'), ('p_infer', 'f8')])
 
-        # Save the structured array
-        # np.save(f'{self.output_dir}/{self.input_name}_p_infer_structured.npy', structured_array)
-     
+        np.save(f'{self.p_infer_dir}/{self.input_name}_structured_p_infer.npy', structured_array)
+
     def calculate_embeddings(self):
         logging.info("Calculating embeddings...")
         # Calculate embeddings for each sequence
