@@ -63,6 +63,7 @@ class TCRpegModel:
         os.makedirs(f"{self.p_infer_dir}/raw", exist_ok=True)
         os.makedirs(f"{self.p_infer_dir}/structured", exist_ok=True)
         os.makedirs(self.embeddings_dir, exist_ok=True)
+        os.makedirs(f"{self.embeddings_dir}/word2vec_aa", exist_ok=True)
         os.makedirs(f"{self.embeddings_dir}/raw", exist_ok=True)
         os.makedirs(f"{self.embeddings_dir}/structured", exist_ok=True)
         os.makedirs(self.models_dir, exist_ok=True)
@@ -107,13 +108,13 @@ class TCRpegModel:
                                batch_size=batch_size,
                                device=self.device, lr=learning_rate,
                                window_size=3,
-                               record_path=f'{self.embeddings_dir}/{self.input_name}_aa.txt')
+                               record_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt')
         logging.info("Word2Vec model trained successfully.")
 
     def train_model(self, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
         logging.info("Training TCRpeg model...")
         self.model = TCRpeg(hidden_size=hidden_size, num_layers=num_layers, load_data=True, max_length=50,
-                            embedding_path=f'{self.embeddings_dir}/{self.input_name}_aa.txt',
+                            embedding_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt',
                             path_train=self.sequences_train, device=self.device)
         
         self.model.create_model()
@@ -152,7 +153,7 @@ class TCRpegModel:
         structured_array = np.zeros(len(self.sequences),
                                     dtype=[('id', 'U50'), ('sequence', 'U100'), ('embedding', 'f4', (640,))])
         
-        structured_array['id'] = np.arange(len(self.sequences))
+        structured_array['id'] = self.ids
         structured_array['sequence'] = self.sequences
         structured_array['embedding'] = embeddings
         # Save the structured array
@@ -222,6 +223,7 @@ if __name__ == "__main__":
     # Log the arguments
     logging.info(f"Running parameters: {vars(args)}")
 
+    #todo fix problem with mps and float
     # Check if MPS is available and set the device accordingly
     if args.device == 'mps' and not torch.backends.mps.is_available():
         logging.warning("MPS device requested but not available. Falling back to CPU.")
