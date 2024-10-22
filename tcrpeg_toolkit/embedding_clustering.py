@@ -28,7 +28,7 @@ class OptimalClusterFinder:
         self.max_k = max_k
         self.random_state = random_state
 
-    def find_optimal_clusters(self):
+    def find_optimal_clusters(self, clustering_method='kmeans'):
         """
         Finds the optimal number of clusters (k) for KMeans clustering using the elbow method.
 
@@ -47,8 +47,16 @@ class OptimalClusterFinder:
         k_values = range(1, max_k + 1)
 
         for k in k_values:
-            kmeans = KMeans(n_clusters=k, random_state=self.random_state, n_init=10).fit(self.data)
-            inertias.append(kmeans.inertia_)
+            if clustering_method == 'kmeans':
+                kmeans = KMeans(n_clusters=k, random_state=self.random_state, n_init=10).fit(self.data)
+                inertias.append(kmeans.inertia_)
+            # Use the KneeLocator to find the elbow point
+            elif clustering_method == 'faiss':
+                kmeans = faiss.Kmeans(self.data.shape[1], k, niter=100, verbose=False)
+                kmeans.train(self.data)
+                inertias.append(kmeans.obj[-1])
+            else:
+                raise ValueError(f"Invalid clustering method: {clustering_method}")
 
         # Use the KneeLocator to find the elbow point
         knee_locator = KneeLocator(k_values, inertias, curve='convex', direction='decreasing')
@@ -86,6 +94,7 @@ class EmbeddingClustering:
             self.embeddings = self.data.embeddings
             self.ids = self.data.ids
             self.sequences = self.data.sequences
+            self.embedding_handler = self.data
 
     # def prepare_directories_and_filenames(self):
     #     # Create the analysis output directory if it doesn't exist
@@ -96,9 +105,9 @@ class EmbeddingClustering:
     #     # Extract the input file name without extension
     #     self.input_name = os.path.basename(self.input_file).split('_embeddings.npy')[0]
 
-    def find_optimal_clusters(self):
+    def find_optimal_clusters(self, clustering_method='faiss'):
         optimal_cluster_finder = OptimalClusterFinder(self.embeddings, max_k=100, random_state=42)
-        return optimal_cluster_finder.find_optimal_clusters()
+        return optimal_cluster_finder.find_optimal_clusters(clustering_method=clustering_method)
                                         
     def faiss_clustering(self,  k=4, niter=10):
         #   Set up FAISS clustering
@@ -136,11 +145,11 @@ class EmbeddingClustering:
         score = silhouette_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Silhouette score: {score}")
  
-    def run(self, k=4, n_iter=10, optimal_cluster=True):
+    def run(self, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss'):
         # self.prepare_directories_and_filenames()
         # self.read_embeddings_files()
         if optimal_cluster:
-            k = self.find_optimal_clusters()
+            k = self.find_optimal_clusters(clustering_method=clustering_method)
         faiss_clusters = self.faiss_clustering(k=k, niter=n_iter)
         new_embedding_handler = self.update_embedding_handler(clusters=faiss_clusters, name='cluster')
         self.calculate_silhouette_score()
