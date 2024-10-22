@@ -16,6 +16,7 @@ def process_numpy_files(folder_path, use_structured_array=True):
             sample_name = os.path.splitext(file_name)[0]
             data_list.append(np.load(file_path))
             sample_ids.append(sample_name)
+            
     
     if use_structured_array:
         dtype = [('sample_id', 'U50'), ('probabilities', float, (len(data_list[0]),))]
