@@ -8,7 +8,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, r
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import LabelEncoder
 
-from .utils import load_data
+from tcrpeg_toolkit.utils import load_data
 
 class Embedding:
     def __init__(self, embeddings, ids=None, sequences=None):
@@ -81,8 +81,8 @@ class Embedding:
         return Embedding(self.embeddings / norms[:, np.newaxis], self.ids, self.sequences)
 
     def save(self, filename):
-        np.savez(filename, embeddings=self.embeddings, ids=self.ids, sequences=self.sequences)
-        print(f"Embedding data saved to {filename}")
+        np.save(filename, embeddings=self.embeddings, ids=self.ids, sequences=self.sequences)
+        logging.info(f"Embedding data saved to {filename}")
 
 
 class EmbeddingHandler():
@@ -166,7 +166,7 @@ class EmbeddingHandler():
                 self.metadata = self.metadata.set_index(self.key_sequence).reindex(self.sequences).reset_index()
 
         except:
-            print("Warning error while sorting the metadata, none will be used.")
+            logging.info("Warning error while sorting the metadata, none will be used.")
             self.metadata = None
 
     def concatenate_embeddings(self, other_handler):
