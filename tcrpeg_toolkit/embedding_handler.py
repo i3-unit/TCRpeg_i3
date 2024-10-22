@@ -123,8 +123,8 @@ class EmbeddingHandler():
             numerical_columns = [col for col in self.data.columns if 
                                     any(char.isdigit() for char in col)]
             self.embeddings = self.data[numerical_columns].values
-            self.ids = self.data['id'].astype(str)
-            self.sequences = self.data['seq']
+            self.ids = self.data['id'].astype(str) if 'id' in self.data.columns else np.arrange(self.embeddings.shape[0])
+            self.sequences = self.data['sequence'] if 'sequence' in  self.data.columns else None
 
         elif isinstance(self.data, np.ndarray):
             if self.data.dtype.names is not None:
@@ -138,18 +138,21 @@ class EmbeddingHandler():
         return  Embedding(self.embeddings, self.ids, self.sequences)
 
     def __repr__(self):
-        # return (f"EmbeddingHandler(embeddings_shape={self.embeddings.shape}, ids_shape={self.ids.shape if self.ids is not None else 'None'}, "
-        # f"sequences_shape={self.sequences.shape if self.sequences is not None else 'None'}, metadata_shape={self.metadata.shape if self.metadata is not None else 'None'}, name={self.name if self.name else 'None'})")
+        return (f"EmbeddingHandler(embeddings_shape={self.embeddings.shape}, ids_shape={self.ids.shape if self.ids is not None else 'None'}, "
+        f"sequences_shape={self.sequences.shape if self.sequences is not None else 'None'}, metadata_shape={self.metadata.shape if self.metadata is not None else 'None'}, name={self.name if self.name else 'None'})")
 
-        return f"EmbeddingHandler(embeddings_shape={self.embeddings.shape}, ids_shape={self.ids.shape if self.ids is not None else 'None'}, sequences_shape={self.sequences.shape if self.sequences is not None else 'None'}, metadata_shape={self.metadata.shape if self.metadata is not None else 'None'})"
+        # return f"EmbeddingHandler(embeddings_shape={self.embeddings.shape}, ids_shape={self.ids.shape if self.ids is not None else 'None'}, sequences_shape={self.sequences.shape if self.sequences is not None else 'None'}, metadata_shape={self.metadata.shape if self.metadata is not None else 'None'})"
 
     def __add__(self, other_handler):
         concatenated_embeddings, concatenated_ids, concatenated_sequences = self.concatenate_embeddings(other_handler)
         concatenated_metadata =  self.concatenate_metadata(other_handler)
         return EmbeddingHandler(data=Embedding(concatenated_embeddings, concatenated_ids, concatenated_sequences), metadata=concatenated_metadata,
-                                name=f"{self.name}_{other_handler.name}" if self.name and other_handler.name else None)
+                                name=f"{self.name}_{other_handler.name}" if self.name and other_handler.name else None,
+                                key_embedding = self.key_embedding, key_metadata = self.key_metadata)
 
     def _sort_metadata(self):
+        #todo simplify this to match id and sequence for embedding and metadata
+        #todo fix issue when there is merge on sequence added with sample name
         try:
             if self.key_embedding == 'id':
                 # self.metadata[self.key_metadata] = self.metadata[self.key_metadata].astype(str)
@@ -162,8 +165,21 @@ class EmbeddingHandler():
                                 .set_index(self.key_metadata)
                                 .reindex(self.ids)
                                 .reset_index())
+                # logging.info("Sorted metadata based on id.")
+                
             elif self.key_embedding == 'sequence':
-                self.metadata = self.metadata.set_index(self.key_sequence).reindex(self.sequences).reset_index()
+                # self.metadata = self.metadata.set_index(self.key_sequence).reindex(self.sequences).reset_index()
+                self.metadata = (self.metadata
+                                .assign(**{self.key_metadata: lambda x: x[self.key_metadata].astype(str)})
+                                .set_index(self.key_metadata)
+                                .reindex(self.sequences)
+                                .reset_index())
+                
+                self.metadata.insert(0, 'id', self.ids) if 'id' not in self.metadata.columns else None
+                # logging.info("Sorted metadata based on sequence.")
+
+            else:
+                raise ValueError("Invalid key_embedding. Choose either 'id' or 'sequence'.")
 
         except:
             logging.info("Warning error while sorting the metadata, none will be used.")
@@ -179,11 +195,16 @@ class EmbeddingHandler():
         # Concatenate IDs if they exist
         if self.ids is not None and other_handler.ids is not None:
             # Convert IDs to strings and add suffixes
-            ids_self = np.array([str(id) + ":" + self.name for id in self.ids]) if self.name else self.ids
-            ids_other = np.array([str(id) + ":" + other_handler.name for id in other_handler.ids]) if other_handler.name else other_handler
+            # ids_self = np.array([str(id) + ":" + self.name for id in self.ids]) if self.name else self.ids
+            # ids_other = np.array([str(id) + ":" + other_handler.name for id in other_handler.ids]) if other_handler.name else other_handler
+
+            # concatenated_ids = np.concatenate((ids_self, ids_other), axis=0)
+
+            ids_self = np.array([str(id) + ":" + self.name for id in self.ids]).reshape(-1) if self.name else self.ids.reshape(-1)
+            ids_other = np.array([str(id) + ":" + other_handler.name for id in other_handler.ids]).reshape(-1) if other_handler.name else other_handler.ids.reshape(-1)
 
             concatenated_ids = np.concatenate((ids_self, ids_other), axis=0)
-            
+
         # Concatenate sequences if they exist
         if self.sequences is not None and other_handler.sequences is not None:
             concatenated_sequences = np.concatenate((self.sequences, other_handler.sequences), axis=0)
