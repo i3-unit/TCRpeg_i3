@@ -279,6 +279,13 @@ class EmbeddingHandler():
     def get_metadata(self):
         return self.metadata
 
+    def save_metadata(self, output_file):
+        if self.metadata is not None:
+            self.metadata.to_csv(output_file, index=False)
+            logging.info(f"Metadata saved to {output_file}")
+        else:
+            logging.warning("No metadata to save.")
+
     def filter_by_id(self, ids_list):
         if self.ids is not None:
             mask = np.isin(self.ids, ids_list)
