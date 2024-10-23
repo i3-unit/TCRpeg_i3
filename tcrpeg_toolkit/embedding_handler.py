@@ -286,6 +286,8 @@ class EmbeddingHandler():
         else:
             logging.warning("No metadata to save.")
 
+    #todo add option for raw embeddings and structured to be save
+
     def filter_by_id(self, ids_list):
         if self.ids is not None:
             mask = np.isin(self.ids, ids_list)
