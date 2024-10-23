@@ -236,6 +236,22 @@ class EmbeddingHandler():
 
             return concatenated_metadata
 
+        elif all([self.ids is not None, self.name is not None, 
+         other_handler.ids is not None, other_handler.name is not None]):
+    
+            ids_self = [f"{id}:{self.name}" for id in self.ids]
+            ids_other = [f"{id}:{other_handler.name}" for id in other_handler.ids]
+
+            concatenated_ids = np.concatenate((ids_self, ids_other))
+            concatenated_metadata = pd.DataFrame({
+            'id': concatenated_ids,
+            'data_origin': np.concatenate((
+                np.full(len(self.ids), self.name),
+                np.full(len(other_handler.ids), other_handler.name)
+            ))
+            })
+            return concatenated_metadata
+
         return None
 
     def set_clusters(self, clusters, cluster_name='cluster'):
