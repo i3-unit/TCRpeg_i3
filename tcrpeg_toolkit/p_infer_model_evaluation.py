@@ -33,7 +33,7 @@ class PinferCalculation:
     # Extract the model file name without extension
         self.input_name = os.path.basename(self.data_test).split('.csv')[0]
 
-    def read_model(self, hidden_size, num_layers):
+    def read_model(self, hidden_size=128, num_layers=5):
         # Create an instance of TCRpeg and load the model
         self.model = TCRpeg(hidden_size=hidden_size, num_layers=num_layers, embedding_path=self.embedding_file, device=self.device)
         self.model.create_model(load=True, path=self.model_file)
@@ -62,14 +62,15 @@ class PinferCalculation:
         
         structured_array['id'] = self.data_test['id']
         structured_array['sequence'] = self.data_test['seq']
-        structured_array['embedding'] = p_infer
+        structured_array['pinfer'] = p_infer
         # Save the structured array
         np.save(f'{self.analysis_dir}/{self.input_name}_structured_pinfer.npy', structured_array)
 
 
-    def run(self, **kwargs):
+    def run(self, hidden_size=128,  num_layers=5):
         self.prepare_directories_and_filenames()
-        self.read_model()
+        self.read_model(hidden_size=hidden_size, num_layers=num_layers)
+        self.read_data()
         self.calculate_pinfer()
         
     
