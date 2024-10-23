@@ -41,6 +41,8 @@ class OptimalClusterFinder:
         
         # Adjust the maximum number of clusters based on the rule of thumb if necessary
         rule_of_thumb_k = int(np.sqrt(n_samples / 2))
+        logging.info(f"Based on the rule of thumb, the maximum number of clusters k should be ≤ {rule_of_thumb_k}.")
+
         max_k = min(self.max_k, rule_of_thumb_k)
         
         inertias = []
@@ -52,7 +54,7 @@ class OptimalClusterFinder:
                 inertias.append(kmeans.inertia_)
             # Use the KneeLocator to find the elbow point
             elif clustering_method == 'faiss':
-                kmeans = faiss.Kmeans(self.data.shape[1], k, niter=100, verbose=False)
+                kmeans = faiss.Kmeans(self.data.shape[1], k, niter=10, verbose=False)
                 kmeans.train(self.data)
                 inertias.append(kmeans.obj[-1])
             else:
@@ -62,7 +64,6 @@ class OptimalClusterFinder:
         knee_locator = KneeLocator(k_values, inertias, curve='convex', direction='decreasing')
 
         optimal_k = knee_locator.elbow
-        logging.info(f"Based on the rule of thumb, the maximum number of clusters k should be ≤ {rule_of_thumb_k}.")
         logging.info(f"The optimal number of clusters k based on the elbow method is {optimal_k}.")
         
         if optimal_k is None:
