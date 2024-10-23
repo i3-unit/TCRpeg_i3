@@ -89,6 +89,7 @@ class EmbeddingClustering:
             self.embedding_handler= EmbeddingHandler(self.data)
             self.embeddings = self.embedding_handler.get_embeddings()
             self.ids = self.embedding_handler.get_ids()
+            self.data = self.embedding_handler
         else:
             logging.info("Loaded Embedding Object")
             self.embeddings = self.data.embeddings
