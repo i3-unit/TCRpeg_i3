@@ -133,6 +133,8 @@ class EmbeddingHandler():
                 self.sequences = self.data['sequence'] if 'sequence' in self.data.dtype.names else None
             else:
                 self.embeddings = self.data
+                self.ids = np.arange(self.embeddings.shape[0])
+                logging.warning("Generated random ids")
         else:
             raise ValueError("Unsupported data type.")
         return  Embedding(self.embeddings, self.ids, self.sequences)
@@ -182,7 +184,7 @@ class EmbeddingHandler():
                 raise ValueError("Invalid key_embedding. Choose either 'id' or 'sequence'.")
 
         except:
-            logging.info("Warning error while sorting the metadata, none will be used.")
+            logging.warning("Error while sorting the metadata, none will be used.")
             self.metadata = None
 
     def concatenate_embeddings(self, other_handler):
@@ -204,6 +206,8 @@ class EmbeddingHandler():
             ids_other = np.array([str(id) + ":" + other_handler.name for id in other_handler.ids]).reshape(-1) if other_handler.name else other_handler.ids.reshape(-1)
 
             concatenated_ids = np.concatenate((ids_self, ids_other), axis=0)
+        else: 
+            concatenated_ids = None
 
         # Concatenate sequences if they exist
         if self.sequences is not None and other_handler.sequences is not None:
@@ -242,6 +246,8 @@ class EmbeddingHandler():
 
     def update_metadata(self, data_to_add, column_name):
         if self.metadata is None:
+            if self.ids is None:
+                self.metadata = pd.DataFrame()
             self.metadata = pd.DataFrame({'id': self.ids})
         self.metadata[column_name] = data_to_add
 
