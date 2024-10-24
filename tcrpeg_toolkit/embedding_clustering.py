@@ -72,6 +72,7 @@ class OptimalClusterFinder:
         
         return optimal_k
 
+#todo add metadata as option
 class EmbeddingClustering:
     def __init__(self, data, output_dir=None, device='cpu'):
         self.data = data 
@@ -96,7 +97,16 @@ class EmbeddingClustering:
             self.embeddings = self.data.embeddings
             self.ids = self.data.ids
             self.sequences = self.data.sequences
-            self.embedding_handler = self.data
+# from sklearn.metrics import davies_bouldin_score, calinski_harabasz_score
+
+# # Davies-Bouldin Index
+# db_score = davies_bouldin_score(umap_embedding, cluster_labels)
+# print(f'Davies-Bouldin Index: {db_score}')
+
+# # Calinski-Harabasz Index
+# ch_score = calinski_harabasz_score(umap_embedding, cluster_labels)
+# print(f'Calinski-Harabasz Index: {ch_score}')
+#             self.embedding_handler = self.data
 
     # def prepare_directories_and_filenames(self):
     #     # Create the analysis output directory if it doesn't exist
