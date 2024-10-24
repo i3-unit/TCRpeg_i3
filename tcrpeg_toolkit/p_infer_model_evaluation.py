@@ -25,15 +25,16 @@ class PinferCalculation:
         self.data = None
         
     def prepare_directories_and_filenames(self):
-    # Create the analysis output directory if it doesn't exist
-        os.makedirs(self.output_dir, exist_ok=True)
-        self.analysis_dir = os.path.join(self.output_dir, "analysis/Pinfer")
-        os.makedirs(self.analysis_dir, exist_ok=True)
-    
+        
     # Extract the model file name without extension
         self.model_name = os.path.basename(self.model_file).split('.pth')[0]
         self.data_name = os.path.basename(self.data_test).split('.csv')[0]
-
+        
+    # Create the analysis output directory if it doesn't exist
+        os.makedirs(self.output_dir, exist_ok=True)
+        self.analysis_dir = os.path.join(self.output_dir, "model_evaluation/", self.model_name)
+        os.makedirs(self.analysis_dir, exist_ok=True)
+    
     def read_model(self, hidden_size=128, num_layers=5):
         # Create an instance of TCRpeg and load the model
         self.model = TCRpeg(hidden_size=hidden_size, num_layers=num_layers, embedding_path=self.embedding_file, device=self.device)
@@ -66,7 +67,7 @@ class PinferCalculation:
         structured_array['sequence'] = self.data_test['seq']
         structured_array['pinfer'] = p_infer
         # Save the structured array
-        np.save(f'{self.analysis_dir}/{self.model_name}_{self.data_name}_structured_pinfer.npy', structured_array)
+        np.save(f'{self.analysis_dir}/{self.data_name}_structured_pinfer.npy', structured_array)
 
 
     def run(self, hidden_size=128,  num_layers=5):
