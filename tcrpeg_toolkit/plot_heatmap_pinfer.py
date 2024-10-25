@@ -149,7 +149,7 @@ class PlotHeatmapPinfer():
                     dendrogram_ratio=(.1, .2),
                     cbar_pos=(.02, .32, .03, .2),
                     linewidths=.75, 
-                   method='ward',
+                    method='ward',
                     figsize=(12, 13))
         #todo add legend and ax as option with show 
         return g 
