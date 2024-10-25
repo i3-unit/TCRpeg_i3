@@ -7,6 +7,7 @@ import seaborn as sns
 from sklearn.cluster import KMeans
 from kneed import KneeLocator
 import faiss
+import hdbscan
 import argparse
 import logging
 from sklearn.metrics import silhouette_score
@@ -133,7 +134,21 @@ class EmbeddingClustering:
         _, cluster_assignments = kmeans.index.search(self.embeddings, 1)
         self.cluster_assignments = cluster_assignments.flatten()
         return self.cluster_assignments
-
+    
+    def hdbscan_clustering(self, k=4):
+        print('Applying hdbscan...')
+        subcluster_labels = np.full(self.embeddings.shape[0], -1)  # Initialize with -1 for outliers
+        for supercluster in range(k):
+            mask = self.cluster_assignments == supercluster
+            if np.sum(mask) > 0:
+                cluster_data = self.embeddings[mask]
+                hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=5)
+                hdbscan_labels = hdbscan_clusterer.fit_predict(cluster_data)
+                subcluster_labels[mask] = hdbscan_labels + subcluster_labels.max() + 1  # Ensure unique labels
+        
+        self.cluster_assignments = subcluster_labels
+        return self.cluster_assignments
+    
     def update_embedding_handler(self, clusters, name='cluster'):
         self.embedding_handler.update_metadata(clusters, column_name=name)
         return self.embedding_handler
@@ -157,13 +172,16 @@ class EmbeddingClustering:
         score = silhouette_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Silhouette score: {score}")
  
-    def run(self, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss'):
+    def run(self, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss', apply_hdbscan=True):
         # self.prepare_directories_and_filenames()
         # self.read_embeddings_files()
         if optimal_cluster:
             k = self.find_optimal_clusters(clustering_method=clustering_method)
-        faiss_clusters = self.faiss_clustering(k=k, niter=n_iter)
-        new_embedding_handler = self.update_embedding_handler(clusters=faiss_clusters, name='cluster')
+        clusters = self.faiss_clustering(k=k, niter=n_iter)
+        new_embedding_handler = self.update_embedding_handler(clusters=clusters, name='cluster')
+        if apply_hdbscan:
+            clusters = self.hdbscan_clustering(k=k)
+            new_embedding_handler = self.update_embedding_handler(clusters=clusters, name='cluster_hdbscan')
         self.calculate_silhouette_score()
         return new_embedding_handler
    
