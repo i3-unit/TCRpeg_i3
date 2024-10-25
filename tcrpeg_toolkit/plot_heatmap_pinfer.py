@@ -140,7 +140,7 @@ class PlotHeatmapPinfer():
         v_max = 1 if normalize else distance_matrix_annotated.max().max()
 
         g = sns.clustermap(distance_matrix_annotated, 
-                    cmap="vlag",
+                    cmap="vlag", 
                     row_colors=row_colors, 
                     col_colors=col_colors,
                     vmin = v_min,
@@ -149,6 +149,7 @@ class PlotHeatmapPinfer():
                     dendrogram_ratio=(.1, .2),
                     cbar_pos=(.02, .32, .03, .2),
                     linewidths=.75, 
+                   method='ward',
                     figsize=(12, 13))
         #todo add legend and ax as option with show 
         return g 
