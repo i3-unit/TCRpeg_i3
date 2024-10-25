@@ -145,7 +145,7 @@ class PlotHeatmapPinfer():
                     col_colors=col_colors,
                     vmin = v_min,
                     vmax = v_max,
-                    center=0,
+                    center=0.0,
                     dendrogram_ratio=(.1, .2),
                     cbar_pos=(.02, .32, .03, .2),
                     linewidths=.75, 
@@ -153,7 +153,6 @@ class PlotHeatmapPinfer():
                     figsize=(12, 13))
         #todo add legend and ax as option with show 
         return g 
-
     def run(self, **kwargs):
         p_infer_dict = self.load_data_numpy(self.data)
         distance_matrix = self.calculate_distance(p_infer_dict)
