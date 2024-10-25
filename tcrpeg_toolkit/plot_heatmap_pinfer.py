@@ -57,9 +57,25 @@ class PlotHeatmapPinfer():
         wasserstein_distance_df_all = pd.DataFrame(wasserstein_distance_val_all, index=p_infer_dict.keys(), columns=p_infer_dict.keys())
         return wasserstein_distance_df_all
 
-    def create_multi_index(self, metadata, columns=None):
+    def process_metadata(self, metadata, names_order):
         # Ensure no leading or trailing whitespace
         metadata.columns = metadata.columns.str.strip()
+
+        # Sort metadata by id or index if id is not present to match the order of the data
+        try:
+            if 'id' in metadata.columns:
+                metadata = metadata.set_index('id').reindex(names_order).reset_index()
+            else:
+                logging.warning("Metadata does not contain an 'id' column. Sorting by index.")
+                metadata = metadata.reindex(names_order).reset_index()
+
+        except:
+            logging.warning("Metadata id or index does not match the data names (name_p_infer.npy). Not using metadata.")
+            metadata = None
+
+        return metadata
+
+    def create_multi_index(self, metadata, columns=None):
         if columns is None:
             columns_to_use = [col for col in metadata.columns if col != 'id']
         else:
@@ -102,7 +118,7 @@ class PlotHeatmapPinfer():
     def assign_metadata_color(self, metadata_multi_idx):
         #todo add option for palette here
         # Create distinct palettes for each column using different seaborn palettes
-        palette_options = ['husl', 'Set2', 'tab10', 'Paired', 'deep']
+        palette_options = ['Set2', 'Dark2', 'Accent', 'Pastel1', 'Spectral', 'RdYlBu', 'PRGn', 'PiYG', 'BrBG']
         color_palettes = {}
 
         for i, col in enumerate(metadata_multi_idx.names):
@@ -117,26 +133,36 @@ class PlotHeatmapPinfer():
 
         return row_colors_df
 
-    def plot_heatmap(self, distance_matrix_annotated, row_colors=None, col_colors=None):
+    def plot_heatmap(self, distance_matrix_annotated, row_colors=None, col_colors=None, normalize=False):
+        #todo this range is only for wasserstein_distance_val_all 
+        #todo add jsd distance for calculation with range 0,1
+        v_min = -1 if normalize else distance_matrix_annotated.min().min()
+        v_max = 1 if normalize else distance_matrix_annotated.max().max()
+
         g = sns.clustermap(distance_matrix_annotated, 
-                   cmap="vlag", 
-                   row_colors=row_colors, 
-                   col_colors=col_colors,
-                   dendrogram_ratio=(.1, .2),
-                   cbar_pos=(.02, .32, .03, .2),
-                   linewidths=.75, 
-                   method='ward',
-                   figsize=(12, 13))
+                    cmap="vlag", 
+                    row_colors=row_colors, 
+                    col_colors=col_colors,
+                    vmin = v_min,
+                    vmax = v_max,
+                    center=0,
+                    dendrogram_ratio=(.1, .2),
+                    cbar_pos=(.02, .32, .03, .2),
+                    linewidths=.75, 
+                    method='ward',
+                    figsize=(12, 13))
         #todo add legend and ax as option with show 
         return g 
 
     def run(self, **kwargs):
         p_infer_dict = self.load_data_numpy(self.data)
         distance_matrix = self.calculate_distance(p_infer_dict)
+        metadata_ordered = self.process_metadata(self.metadata, distance_matrix.index)
         metadata_multi_idx = self.create_multi_index(self.metadata) if self.metadata is not None else None
         distance_matrix_annotated = self.annotate_distance_matrix(distance_matrix, metadata_multi_idx) if metadata_multi_idx is not None else distance_matrix
         metadata_multi_idx_colors = self.assign_metadata_color(metadata_multi_idx) if metadata_multi_idx is not None else None
-        self.plot_heatmap(distance_matrix_annotated, row_colors=metadata_multi_idx_colors, col_colors=metadata_multi_idx_colors)
+        self.plot_heatmap(distance_matrix_annotated, row_colors=metadata_multi_idx_colors, col_colors=metadata_multi_idx_colors, **kwargs)
+        #todo add return for plot
 
 class TCRpegInference:
     def __init__(self, data, sample_ids=None):
