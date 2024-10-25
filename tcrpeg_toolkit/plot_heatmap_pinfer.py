@@ -157,7 +157,7 @@ class PlotHeatmapPinfer():
         p_infer_dict = self.load_data_numpy(self.data)
         distance_matrix = self.calculate_distance(p_infer_dict)
         metadata_ordered = self.process_metadata(self.metadata, distance_matrix.index) if self.metadata is not None else None
-        metadata_multi_idx = self.create_multi_index(self.metadata) if self.metadata is not None else None
+        metadata_multi_idx = self.create_multi_index(metadata_ordered) if metadata_ordered is not None else None
         distance_matrix_annotated = self.annotate_distance_matrix(distance_matrix, metadata_multi_idx) if metadata_multi_idx is not None else distance_matrix
         metadata_multi_idx_colors = self.assign_metadata_color(metadata_multi_idx) if metadata_multi_idx is not None else None
         self.plot_heatmap(distance_matrix_annotated, row_colors=metadata_multi_idx_colors, col_colors=metadata_multi_idx_colors, **kwargs)
