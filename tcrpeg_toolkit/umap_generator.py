@@ -152,8 +152,22 @@ class UMAPGenerator():
             except:
                 logging.warning("Metadata not merged with UMAP data.")
 
-    def plot_umap(self, ax=None, hue=None, palette=None, s=20, alpha=1.0, show=True,  output_file=None):
+    def plot_umap(self, ax=None, hue=None, palette=None, s=20, alpha=1.0, show=True,  output_file=None, **kwargs):
         num_dimensions = self.embeddings_reduced.shape[1]
+
+        # Determine the color mapping based on the palette type
+        if palette is not None and isinstance(palette, str):
+            try:
+                # Use Seaborn's built-in color scales for string palettes
+                palette = sns.color_palette(palette)
+            except ValueError:
+                # Fallback to default palette if the provided name is invalid
+                palette = 'husl'
+        elif palette is not None and isinstance(palette, dict):
+            # Use the provided dictionary palette
+            palette = palette
+        else:
+            palette = 'husl'  # Default palette
 
         # Plotting for 2 dimensions UMAP
         if num_dimensions == 2:
@@ -163,7 +177,7 @@ class UMAPGenerator():
             sns.scatterplot(x=self.umap_data['UMAP_1'],
                             y=self.umap_data['UMAP_2'],
                             hue=self.umap_data[hue] if hue is not None else None,
-                            palette=None if hue is None else (palette if palette is not None else 'viridis'),
+                            palette=None if hue is None else (palette if palette is not None else 'husl'),
                             ax=ax,
                             s=s,
                             alpha=alpha)
@@ -177,6 +191,11 @@ class UMAPGenerator():
                     # Sort legend handles and labels based on the original order of the palette
                     order = [list(palette.keys()).index(label) for label in labels]
                     sorted_handles_labels = sorted(zip(handles, labels), key=lambda x: order[labels.index(x[1])])
+                    handles, labels = zip(*sorted_handles_labels)
+                else:
+                    # Ensure all unique hues are captured
+                    unique_hues = self.umap_data[hue].unique().tolist()
+                    sorted_handles_labels = sorted(zip(handles, labels), key=lambda x: unique_hues.index(x[1]) if x[1] in unique_hues else float('inf'))
                     handles, labels = zip(*sorted_handles_labels)
 
                 # Calculate dynamic number of columns
@@ -208,7 +227,7 @@ class UMAPGenerator():
                 color_map = {hue_val: palette.get(hue_val, '#000000') for hue_val in unique_hues}
                 colors = [color_map[val] for val in self.umap_data[hue]]
             else:
-                colors = None if hue is None else (palette if palette is not None else 'viridis')
+                colors = None if hue is None else (palette if palette is not None else 'husl')
             
             # Create the scatter plot with labels
             scatter = ax.scatter(
@@ -231,8 +250,9 @@ class UMAPGenerator():
                 if isinstance(palette, dict):
                     handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_map[label], markersize=10) for label in unique_labels]
                 else:
-                    handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=plt.cm.viridis(i / len(unique_labels)), markersize=10) for i in range(len(unique_labels))]
-                ax.legend(handles, unique_labels, title=hue, bbox_to_anchor=(1.05, 1), loc='upper left')
+                    handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=plt.cm.husl(i / len(unique_labels)), markersize=10) for i in range(len(unique_labels))]                
+
+            ax.legend(handles, unique_labels, title=hue, bbox_to_anchor=(1.05, 1), loc='upper left')
         
             ax.set_xlabel('UMAP 1')
             ax.set_ylabel('UMAP 2')
@@ -255,7 +275,7 @@ class UMAPGenerator():
                         x=self.umap_data[f'UMAP_{i+1}'],
                         y=self.umap_data[f'UMAP_{j+1}'],
                         hue=self.umap_data[hue] if hue is not None else None,
-                        palette=palette if palette is not None else 'viridis',
+                        palette=palette if palette is not None else 'husl',
                         ax=ax, 
                         s=s,
                         alpha=alpha
@@ -299,7 +319,7 @@ class UMAPGenerator():
         
         Parameters:
         - hue: str, column name for color encoding
-        - palette: dict, a dictionary mapping hue values to colors
+        - palette: dict, a dictionary mapping hue values to colors or seaborn palette name (optional)
         - size: str, column name for marker size
         - symbol: str, column name for marker symbol
         - opacity: float, marker opacity
@@ -313,33 +333,46 @@ class UMAPGenerator():
             if umap_dim not in [2, 3]:
                 raise ValueError("This function only supports 2D and 3D UMAP embeddings")
         except ValueError as e:
-            print(f"Error: {str(e)}")
+            logging.error(f"Error: {str(e)}")
             return
-        
-        color_discrete_map = palette if palette else None
-    
+
+        # Convert the hue column to a categorical type if it's not already
+        if hue is not None and hue in self.umap_data.columns:
+            self.umap_data[hue] = pd.Categorical(self.umap_data[hue])
+
+        # Determine the color mapping based on the palette type
+        if palette is not None and isinstance(palette, str):
+            # Use Plotly's built-in color scales for string palettes
+            color_discrete_map = px.colors.qualitative.__dict__.get(palette, None)
+            if color_discrete_map is None:
+                # Fallback to default palette if the provided name is invalid
+                color_discrete_map = px.colors.qualitative.Plotly
+        elif palette is not None and isinstance(palette, dict):
+            # Use the provided dictionary palette
+            color_discrete_map = palette
+        else:
+            color_discrete_map = px.colors.qualitative.Plotly  # Default palette
+
         if umap_dim == 2:
             fig = px.scatter(self.umap_data, x='UMAP_1', y='UMAP_2', 
-                            color=hue ,symbol=symbol, opacity=opacity,
-                            size = size, size_max=10,
-                            color_discrete_map=color_discrete_map)
+                            color=hue, symbol=symbol, opacity=opacity,
+                            size=size, size_max=10,
+                            color_discrete_map={str(i): color for i, color in enumerate(color_discrete_map)})
             fig.update_traces(marker=dict(size=marker_size))
             fig.update_layout(
-                # title='Interactive UMAP Visualization',
                 xaxis_title='UMAP 1',
                 yaxis_title='UMAP 2',
                 legend_title=f'{hue} and {symbol}' if symbol else hue
             )
-        
+
         elif umap_dim == 3:
             fig = px.scatter_3d(self.umap_data, x='UMAP_1', y='UMAP_2',
                                 z='UMAP_3', color=hue,
                                 symbol=symbol, opacity=opacity,
-                                size = size, size_max=10,
-                                color_discrete_map=color_discrete_map)
+                                size=size, size_max=10,
+                                color_discrete_map={str(i): color for i, color in enumerate(color_discrete_map)})
             fig.update_traces(marker=dict(size=marker_size))
             fig.update_layout(
-                # title='Interactive UMAP Visualization',
                 scene=dict(
                     xaxis_title='UMAP 1',
                     yaxis_title='UMAP 2',
@@ -348,9 +381,9 @@ class UMAPGenerator():
                 legend_title=f'{hue} and {symbol}' if symbol else hue,
                 margin=dict(l=0, r=0, b=0, t=0)  # Tight layout
             )
-            
-        # Ensure legend order is preserved
-        if palette is not None and symbol is None and size is None:
+
+        # Ensure legend order is preserved if palette is a dictionary
+        if palette is not None and symbol is None and size is None and isinstance(palette, dict):
             fig.data = sorted(fig.data, key=lambda trace: list(palette.keys()).index(trace.name))
 
         # elif umap_dim == 3:
