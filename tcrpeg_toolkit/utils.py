@@ -25,6 +25,10 @@ def load_data(input_data, message=True):
     """
     if message:
         logging.info("Loading data...")
+
+    if input_data is None:
+        logging.warning("No input data provided.") if message else None
+        return None
     
     if isinstance(input_data, pd.DataFrame):
         if message:
@@ -58,7 +62,4 @@ def load_data(input_data, message=True):
             return data
         except FileNotFoundError:
             logging.error(f"File not found: {input_data}")
-            raise FileNotFoundError(f"File not found: {input_data}")
-        except ValueError as e:
-            logging.error(str(e))
-            raise
+            raise FileNotFoundErr
