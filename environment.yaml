@@ -14,7 +14,7 @@ dependencies:
   - scipy
   - snakemake
   - kneed
-  - umap
+  - umap-learn
   - plotly
   - pip
   - pip:
