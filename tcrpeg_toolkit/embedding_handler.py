@@ -291,9 +291,11 @@ class EmbeddingHandler():
     def filter_by_id(self, ids_list):
         if self.ids is not None:
             mask = np.isin(self.ids, ids_list)
-            return self.embeddings[mask], self.ids[mask], self.sequences[mask]
+            return EmbeddingHandler(data=Embedding(self.embeddings[mask], ids=self.ids[mask], sequences=self.sequences[mask]),
+                                    name=self.name, metadata=self.metadata[mask] if self.metadata is not None else None,
+                                    key_metadata=self.key_metadata, key_embedding=self.key_embedding)
         else:
-            return None, None, None
+            return None
 
     def filter_by_metadata(self, key, values):
         """
