@@ -10,11 +10,11 @@ import faiss
 import hdbscan
 import argparse
 import logging
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+from sklearn.metrics.cluster import adjusted_rand_score
 
 from tcrpeg_toolkit.embedding_handler import EmbeddingHandler, Embedding
 
-#todo change all the print to logging
 class OptimalClusterFinder:
     def __init__(self, data, max_k=100, random_state=42):
         """
@@ -83,6 +83,7 @@ class EmbeddingClustering:
         self.embeddings = None
         self.ids = None
         self.sequences = None
+        self.cluster_assignments = None
 
         self._get_embeddings()
 
@@ -96,9 +97,10 @@ class EmbeddingClustering:
         else:
             logging.info("Loaded Embedding Object")
             self.embeddings = self.data.embeddings
-            self.ids = self.data.ids
             self.sequences = self.data.sequences
-# from sklearn.metrics import davies_bouldin_score, calinski_harabasz_score
+            self.ids = self.data.ids
+            self.embedding_handler = self.data
+
 
 # # Davies-Bouldin Index
 # db_score = davies_bouldin_score(umap_embedding, cluster_labels)
@@ -136,7 +138,7 @@ class EmbeddingClustering:
         return self.cluster_assignments
     
     def hdbscan_clustering(self, k=4):
-        print('Applying hdbscan...')
+        logging.info('Applying hdbscan...')
         subcluster_labels = np.full(self.embeddings.shape[0], -1)  # Initialize with -1 for outliers
         for supercluster in range(k):
             mask = self.cluster_assignments == supercluster
@@ -149,10 +151,21 @@ class EmbeddingClustering:
         self.cluster_assignments = subcluster_labels
         return self.cluster_assignments
     
-    def update_embedding_handler(self, clusters, name='cluster'):
-        self.embedding_handler.update_metadata(clusters, column_name=name)
+    def update_embedding_handler(self, values, name='cluster'):
+        self.embedding_handler.update_metadata(values, column_name=name)
         return self.embedding_handler
 
+    def calculate_save_cluster_metrics(self):
+        if self.cluster_assignments is None:
+            logging.error("No cluster assignments available. Cannot calculate cluster metrics.")
+            return
+        silhouette_score = self.calculate_silhouette_score()
+        davies_bouldin_score = self.calculate_davies_bouldin_score()
+        calinski_harabasz_score = self.calculate_calinski_harabasz_score()
+        self.update_embedding_handler(silhouette_score, name='silhouette_score')
+        self.update_embedding_handler(davies_bouldin_score, name='davies_bouldin_score')
+        self.update_embedding_handler(calinski_harabasz_score, name='calinski_harabasz_score')
+        return self.embedding_handler
 
     # def save_clusters_to_csv(self):
     #     output_file = os.path.join(self.analysis_dir, f"{self.input_name}_clusters.csv")
@@ -168,9 +181,77 @@ class EmbeddingClustering:
     # -1: Means clusters are assigned in the wrong way.   
     # Used for convex clusters as it is the case here
 
-    def calculate_silhouette_score(self): ## Measures how similar a point is to its own cluster compared to other clusters.
+    def calculate_cluster_purity(self):
+        """
+        Calculate the purity score for the current clustering.
+
+        Cluster purity is a measure of the extent to which clusters contain a single class.
+        A higher purity score indicates better clustering quality.
+
+        Returns:
+            None: The method logs the purity score using the logging module.
+        """
+        if not hasattr(self, 'true_labels'):
+            logging.warning("True labels not available. Cannot calculate cluster purity.")
+            return
+            
+        contingency_matrix = np.zeros((len(np.unique(self.cluster_assignments)), 
+                                     len(np.unique(self.true_labels))))
+        
+        for i in range(len(self.cluster_assignments)):
+            contingency_matrix[self.cluster_assignments[i], self.true_labels[i]] += 1
+            
+        purity = np.sum(np.amax(contingency_matrix, axis=1)) / np.sum(contingency_matrix)
+        logging.info(f"Cluster purity score: {purity}")
+
+    def calculate_silhouette_score(self): 
+        """
+        Calculate and log the silhouette score for the current clustering.
+
+        The silhouette score measures how similar a point is to its own cluster compared to other clusters.
+        A higher silhouette score indicates that the clusters are well-defined.
+
+        Returns:
+            None
+        """
         score = silhouette_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Silhouette score: {score}")
+        return score
+
+    def calculate_davies_bouldin_score(self): 
+        """
+        Calculate the Davies-Bouldin score for the current clustering.
+
+        The Davies-Bouldin index is defined as the average similarity measure of each cluster 
+        with its most similar cluster, where similarity is the ratio of within-cluster distances 
+        to between-cluster distances.
+
+        This method computes the Davies-Bouldin score using the embeddings and cluster assignments 
+        stored in the instance.
+
+        Returns:
+            None: The method logs the Davies-Bouldin score using the logging module.
+        """
+        score = davies_bouldin_score(self.embeddings, self.cluster_assignments)
+        logging.info(f"Davies-Bouldin score: {score}")
+        return score
+
+    def calculate_calinski_harabasz_score(self):
+        """
+        Calculate the Calinski-Harabasz score for the current clustering.
+
+        The Calinski-Harabasz index is a ratio of the sum of between-cluster dispersion to the 
+        sum of within-cluster dispersion. A higher value indicates better clustering.
+
+        This method computes the Calinski-Harabasz score using the embeddings and cluster assignments 
+        stored in the instance.
+
+        Returns:
+            None: The method logs the Calinski-Harabasz score using the logging module.
+        """
+        score = calinski_harabasz_score(self.embeddings, self.cluster_assignments)
+        logging.info(f"Calinski-Harabasz score: {score}")
+        return score
  
     def run(self, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss', apply_hdbscan=True):
         # self.prepare_directories_and_filenames()
@@ -178,12 +259,13 @@ class EmbeddingClustering:
         if optimal_cluster:
             k = self.find_optimal_clusters(clustering_method=clustering_method)
         clusters = self.faiss_clustering(k=k, niter=n_iter)
-        new_embedding_handler = self.update_embedding_handler(clusters=clusters, name='cluster')
+        self.update_embedding_handler(values=clusters, name='cluster')
         if apply_hdbscan:
             clusters = self.hdbscan_clustering(k=k)
-            new_embedding_handler = self.update_embedding_handler(clusters=clusters, name='cluster_hdbscan')
-        self.calculate_silhouette_score()
-        return new_embedding_handler
+            self.update_embedding_handler(values=clusters, name='cluster_hdbscan')
+        self.calculate_save_cluster_metrics()
+        
+        return self.embedding_handler
    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Embedding clustering with Faiss')
