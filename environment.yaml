@@ -8,6 +8,7 @@ dependencies:
   - numpy
   - seaborn
   - matplotlib
+  - faiss
   - tqdm
   - pandas
   - scikit-learn
@@ -16,6 +17,7 @@ dependencies:
   - kneed
   - umap-learn
   - plotly
+  - hdbscan
   - pip
   - pip:
       - torch >= 1.1.0
