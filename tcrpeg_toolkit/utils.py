@@ -62,4 +62,7 @@ def load_data(input_data, message=True):
             return data
         except FileNotFoundError:
             logging.error(f"File not found: {input_data}")
-            raise FileNotFoundErr
+            raise FileNotFoundError(f"File not found: {input_data}")
+        except ValueError as e:
+            logging.error(str(e))
+            raise
