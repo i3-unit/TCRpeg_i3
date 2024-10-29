@@ -16,7 +16,7 @@ from sklearn.metrics.cluster import adjusted_rand_score
 from tcrpeg_toolkit.embedding_handler import EmbeddingHandler, Embedding
 
 class OptimalClusterFinder:
-    def __init__(self, data, max_k=100, random_state=42):
+    def __init__(self, data, max_k=1000, random_state=42):
         """
         Initialize the OptimalClusterFinder with the dataset.
 
@@ -181,28 +181,28 @@ class EmbeddingClustering:
     # -1: Means clusters are assigned in the wrong way.   
     # Used for convex clusters as it is the case here
 
-    def calculate_cluster_purity(self):
-        """
-        Calculate the purity score for the current clustering.
+    # def calculate_cluster_purity(self):
+    #     """
+    #     Calculate the purity score for the current clustering.
 
-        Cluster purity is a measure of the extent to which clusters contain a single class.
-        A higher purity score indicates better clustering quality.
+    #     Cluster purity is a measure of the extent to which clusters contain a single class.
+    #     A higher purity score indicates better clustering quality.
 
-        Returns:
-            None: The method logs the purity score using the logging module.
-        """
-        if not hasattr(self, 'true_labels'):
-            logging.warning("True labels not available. Cannot calculate cluster purity.")
-            return
+    #     Returns:
+    #         None: The method logs the purity score using the logging module.
+    #     """
+    #     if not hasattr(self, 'true_labels'):
+    #         logging.warning("True labels not available. Cannot calculate cluster purity.")
+    #         return
             
-        contingency_matrix = np.zeros((len(np.unique(self.cluster_assignments)), 
-                                     len(np.unique(self.true_labels))))
+    #     contingency_matrix = np.zeros((len(np.unique(self.cluster_assignments)), 
+    #                                  len(np.unique(self.true_labels))))
         
-        for i in range(len(self.cluster_assignments)):
-            contingency_matrix[self.cluster_assignments[i], self.true_labels[i]] += 1
+    #     for i in range(len(self.cluster_assignments)):
+    #         contingency_matrix[self.cluster_assignments[i], self.true_labels[i]] += 1
             
-        purity = np.sum(np.amax(contingency_matrix, axis=1)) / np.sum(contingency_matrix)
-        logging.info(f"Cluster purity score: {purity}")
+    #     purity = np.sum(np.amax(contingency_matrix, axis=1)) / np.sum(contingency_matrix)
+    #     logging.info(f"Cluster purity score: {purity}")
 
     def calculate_silhouette_score(self): 
         """
@@ -214,6 +214,14 @@ class EmbeddingClustering:
         Returns:
             None
         """
+        # if cluster_labels == 'kmeans':
+        #     cluster_assignments = self.supercluster_labels
+        # elif cluster_labels == 'hdbscan':
+        #     cluster_assignments = self.subcluster_labels
+        # else:
+        #     logging.error("Clustering method is not supported. Should be one of 'kmeans' or 'hdbscan'. Cannot calculate cluster metrics.")
+        #     return
+            
         score = silhouette_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Silhouette score: {score}")
         return score
@@ -232,6 +240,15 @@ class EmbeddingClustering:
         Returns:
             None: The method logs the Davies-Bouldin score using the logging module.
         """
+        
+        # if cluster_labels == 'kmeans':
+        #     cluster_assignments = self.supercluster_labels
+        # elif cluster_labels == 'hdbscan':
+        #     cluster_assignments = self.subcluster_labels
+        # else:
+        #     logging.error("Clustering method is not supported. Should be one of 'kmeans' or 'hdbscan'. Cannot calculate cluster metrics.")
+        #     return
+        
         score = davies_bouldin_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Davies-Bouldin score: {score}")
         return score
@@ -249,6 +266,15 @@ class EmbeddingClustering:
         Returns:
             None: The method logs the Calinski-Harabasz score using the logging module.
         """
+        
+        # if cluster_labels == 'kmeans':
+        #     cluster_assignments = self.supercluster_labels
+        # elif cluster_labels == 'hdbscan':
+        #     cluster_assignments = self.subcluster_labels
+        # else:
+        #     logging.error("Clustering method is not supported. Should be one of 'kmeans' or 'hdbscan'. Cannot calculate cluster metrics.")
+        #     return
+        
         score = calinski_harabasz_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Calinski-Harabasz score: {score}")
         return score
