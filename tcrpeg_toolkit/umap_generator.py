@@ -11,6 +11,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
+from matplotlib.colors import ListedColormap
 
 # Suppress UMAP warnings
 warnings.filterwarnings("ignore", message="n_jobs value -1 overridden to 1 by setting random_state. Use no seed for parallelism.")
@@ -159,15 +160,27 @@ class UMAPGenerator():
         if palette is not None and isinstance(palette, str):
             try:
                 # Use Seaborn's built-in color scales for string palettes
-                palette = sns.color_palette(palette)
+                if hue is not None:
+                    num_colors = self.umap_data[hue].nunique()
+                    palette = sns.color_palette(palette, num_colors)
+                else:
+                    palette = sns.color_palette(palette)
             except ValueError:
                 # Fallback to default palette if the provided name is invalid
-                palette = 'husl'
+                palette = sns.color_palette('husl', num_colors)
         elif palette is not None and isinstance(palette, dict):
             # Use the provided dictionary palette
             palette = palette
         else:
-            palette = 'husl'  # Default palette
+            if hue is not None:
+                num_colors = self.umap_data[hue].nunique()
+                palette = sns.color_palette('husl', num_colors)  # Default palette with dynamic number of colors
+            else:
+                palette = 'husl'
+
+        # Transform hue to categorical if it's not already
+        if hue is not None and not isinstance(self.umap_data[hue], pd.Categorical):
+            self.umap_data[f"{hue}_categorical"] = pd.Categorical(self.umap_data[hue])
 
         # Plotting for 2 dimensions UMAP
         if num_dimensions == 2:
@@ -176,11 +189,12 @@ class UMAPGenerator():
 
             sns.scatterplot(x=self.umap_data['UMAP_1'],
                             y=self.umap_data['UMAP_2'],
-                            hue=self.umap_data[hue] if hue is not None else None,
+                            hue=self.umap_data[f"{hue}_categorical"] if hue is not None else None,
                             palette=None if hue is None else (palette if palette is not None else 'husl'),
                             ax=ax,
                             s=s,
-                            alpha=alpha)
+                            alpha=alpha,
+                            **kwargs)
             ax.set_xlabel('UMAP 1')
             ax.set_ylabel('UMAP 2')
 
@@ -189,12 +203,16 @@ class UMAPGenerator():
                 
                 if palette is not None and isinstance(palette, dict):
                     # Sort legend handles and labels based on the original order of the palette
+                    # Transform keys and label to string
+                    palette = {str(k): v for k, v in palette.items()}
+                    labels = [str(label) for label in labels]
+                    # Sort labels based on the order of the palette
                     order = [list(palette.keys()).index(label) for label in labels]
                     sorted_handles_labels = sorted(zip(handles, labels), key=lambda x: order[labels.index(x[1])])
                     handles, labels = zip(*sorted_handles_labels)
                 else:
                     # Ensure all unique hues are captured
-                    unique_hues = self.umap_data[hue].unique().tolist()
+                    unique_hues = self.umap_data[f"{hue}_categorical"].unique().tolist()
                     sorted_handles_labels = sorted(zip(handles, labels), key=lambda x: unique_hues.index(x[1]) if x[1] in unique_hues else float('inf'))
                     handles, labels = zip(*sorted_handles_labels)
 
@@ -211,6 +229,7 @@ class UMAPGenerator():
                           fontsize=12)
 
         # Plotting for 3 dimensions UMAP
+        #todo fix legend for this
         elif num_dimensions == 3:
             fig = plt.figure(figsize=(10, 8))
             ax = fig.add_subplot(111, projection='3d')
@@ -220,22 +239,41 @@ class UMAPGenerator():
                 hue_values = pd.Categorical(self.umap_data[hue]).codes
             else:
                 hue_values = self.umap_data[hue] if hue is not None else None
-            
-            # Create color map from palette if it's a dictionary
+    
+            # Assuming `palette` can be a dict, a seaborn color palette, or a string for a matplotlib colormap
+
             if isinstance(palette, dict):
+                # Creating a color map from the dictionary
                 unique_hues = self.umap_data[hue].unique()
                 color_map = {hue_val: palette.get(hue_val, '#000000') for hue_val in unique_hues}
                 colors = [color_map[val] for val in self.umap_data[hue]]
+                cmap = None  # No colormap for custom color lists
             else:
-                colors = None if hue is None else (palette if palette is not None else 'husl')
+                # Handle seaborn or string palettes which imply a colormap
+                colors = hue_values  # Direct mapping from hue values to colors using a colormap
+                if isinstance(palette, str):
+                    cmap = palette  # Use the string directly as the colormap name
+                else:
+                    cmap = None  # If seaborn palette object or default, handle via `c` parameter in scatter
+
+            
+            # # Create color map from palette if it's a dictionary
+            # if isinstance(palette, dict):
+            #     unique_hues = self.umap_data[hue].unique()
+            #     color_map = {hue_val: palette.get(hue_val, '#000000') for hue_val in unique_hues}
+            #     colors = [color_map[val] for val in self.umap_data[hue]]
+            # elif isinstance(palette, sns.palettes._ColorPalette):
+            #     colors = list(palette)
+            # else:
+            #     colors = None if hue is None else (palette if palette is not None else 'husl')
             
             # Create the scatter plot with labels
             scatter = ax.scatter(
                 self.umap_data['UMAP_1'],
                 self.umap_data['UMAP_2'],
                 self.umap_data['UMAP_3'],
-                c=colors if isinstance(palette, dict) else hue_values,
-                cmap=None if isinstance(palette, dict) else colors,
+                c=colors,
+                cmap=cmap,
                 s=s,
                 alpha=alpha
             )
@@ -250,7 +288,21 @@ class UMAPGenerator():
                 if isinstance(palette, dict):
                     handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_map[label], markersize=10) for label in unique_labels]
                 else:
-                    handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=plt.cm.husl(i / len(unique_labels)), markersize=10) for i in range(len(unique_labels))]                
+                    handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=color_map[label], markersize=10) for label in unique_labels]
+                    # Number of unique labels
+                    num_labels = len(self.umap_data[hue].unique())
+
+                    # Get the 'husl' palette from Seaborn and create a colormap
+                    husl_palette = sns.color_palette("husl", num_labels)  # This will fetch the HUSL palette
+                    husl_cmap = ListedColormap(husl_palette)  # Create a colormap from the list of colors
+
+                    # Now use this colormap in your plotting
+                    handles = [
+                        plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=husl_cmap(i / num_labels), markersize=10)
+                        for i in range(num_labels)
+                    ]
+
+                    # handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=plt.cm.husl(i / len(unique_labels)), markersize=10) for i in range(len(unique_labels))]                
 
             ax.legend(handles, unique_labels, title=hue, bbox_to_anchor=(1.05, 1), loc='upper left')
         
@@ -338,7 +390,7 @@ class UMAPGenerator():
 
         # Convert the hue column to a categorical type if it's not already
         if hue is not None and hue in self.umap_data.columns:
-            self.umap_data[hue] = pd.Categorical(self.umap_data[hue])
+            self.umap_data[f"{hue}_categorical"] = pd.Categorical(self.umap_data[hue])
 
         # Determine the color mapping based on the palette type
         if palette is not None and isinstance(palette, str):
@@ -355,7 +407,7 @@ class UMAPGenerator():
 
         if umap_dim == 2:
             fig = px.scatter(self.umap_data, x='UMAP_1', y='UMAP_2', 
-                            color=hue, symbol=symbol, opacity=opacity,
+                            color=f"{hue}_categorical", symbol=symbol, opacity=opacity,
                             size=size, size_max=10,
                             color_discrete_map={str(i): color for i, color in enumerate(color_discrete_map)})
             fig.update_traces(marker=dict(size=marker_size))
@@ -367,7 +419,7 @@ class UMAPGenerator():
 
         elif umap_dim == 3:
             fig = px.scatter_3d(self.umap_data, x='UMAP_1', y='UMAP_2',
-                                z='UMAP_3', color=hue,
+                                z='UMAP_3', color=f"{hue}_categorical",
                                 symbol=symbol, opacity=opacity,
                                 size=size, size_max=10,
                                 color_discrete_map={str(i): color for i, color in enumerate(color_discrete_map)})
