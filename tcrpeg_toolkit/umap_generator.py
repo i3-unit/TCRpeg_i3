@@ -4,6 +4,7 @@ import sys
 import umap
 import logging
 import warnings
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -19,7 +20,7 @@ warnings.filterwarnings("ignore", message="n_jobs value -1 overridden to 1 by se
 # Suppress OpenMP info messages
 os.environ['OMP_DISPLAY_ENV'] = 'FALSE'
 
-from tcrpeg_toolkit.utils import load_data
+from tcrpeg_toolkit.utils import load_data, filter_kwargs_for_function
 from tcrpeg_toolkit.embedding_handler import EmbeddingHandler, Embedding
 
 class UMAPGenerator():
@@ -187,6 +188,10 @@ class UMAPGenerator():
             if ax is None:
                 fig, ax = plt.subplots(figsize=(10, 8))
 
+             # Get additional arguments for sns.scatterplot and ax.legend
+            scatter_kwargs = filter_kwargs_for_function(sns.scatterplot, kwargs)
+            legend_kwargs = filter_kwargs_for_function(ax.legend, kwargs)
+
             sns.scatterplot(x=self.umap_data['UMAP_1'],
                             y=self.umap_data['UMAP_2'],
                             hue=self.umap_data[f"{hue}_categorical"] if hue is not None else None,
@@ -194,7 +199,7 @@ class UMAPGenerator():
                             ax=ax,
                             s=s,
                             alpha=alpha,
-                            **kwargs)
+                            **scatter_kwargs)
             ax.set_xlabel('UMAP 1')
             ax.set_ylabel('UMAP 2')
 
@@ -222,11 +227,12 @@ class UMAPGenerator():
 
                 ax.legend(handles=handles, labels=labels, title=hue,
                           bbox_to_anchor=(0.5, 1.3),
-                          loc='upper center',
+                          loc='best',
                           ncol=ncol, 
                           frameon=False,
                           borderpad=1,
-                          fontsize=12)
+                          fontsize=12,
+                          **legend_kwargs)
 
         # Plotting for 3 dimensions UMAP
         #todo fix legend for this
