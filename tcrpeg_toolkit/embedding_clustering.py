@@ -144,10 +144,15 @@ class EmbeddingClustering:
             mask = self.cluster_assignments == supercluster
             if np.sum(mask) > 0:
                 cluster_data = self.embeddings[mask]
-                hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=5)
+                hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=5, gen_min_span_tree=True)
                 hdbscan_labels = hdbscan_clusterer.fit_predict(cluster_data)
                 subcluster_labels[mask] = hdbscan_labels + subcluster_labels.max() + 1  # Ensure unique labels
-        
+
+            # Calculate DBCV score
+            # dbcv_score = hdbscan.validity.validity_index(cluster_data, hdbscan_labels, 
+            #                                                 metric='euclidean', d=hdbscan_clusterer.relative_validity_)
+            # logging.info(f"DBCV score: {dbcv_score}")
+
         self.cluster_assignments = subcluster_labels
         return self.cluster_assignments
     
@@ -252,6 +257,12 @@ class EmbeddingClustering:
         score = calinski_harabasz_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Calinski-Harabasz score: {score}")
         return score
+
+    def calculate_density_based_cluster_validation(self):
+        """
+        Calculate and log the density-based cluster evaluation metrics for the current clustering.
+        """
+        
  
     def run(self, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss', apply_hdbscan=True):
         # self.prepare_directories_and_filenames()
