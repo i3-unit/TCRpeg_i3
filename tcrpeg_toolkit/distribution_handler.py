@@ -11,15 +11,19 @@ import matplotlib.pyplot as plt
 from tcrpeg_toolkit.utils import load_data
 
 class Distribution:
-    def __init__(self, distributions, ids=None, distance_matrix=None, metadata=None):
+    def __init__(self, distributions, ids=None, **kwargs):
         self.distributions = distributions
         self.ids = ids
-        self.distance_matrix = distance_matrix
-        self.metadata = metadata
+        self.distance_matrix = kwargs.get('distance_matrix', None)
+        self.metadata = kwargs.get('metadata', None)
+        self.distance_metric = kwargs.get('distance_metric', None)
+        self.slot_name = kwargs.get('slot_name', None)
 
     def __repr__(self):
         return f"Distribution(distributions={len(self.distributions)}, ids={len(self.ids) if self.ids else None}, " \
                f"distance_matrix={self.distance_matrix.shape if self.distance_matrix is not None else None}, " \
+               f"distance_metric={self.distance_metric}, " \
+               f"slot_name={self.slot_name}, " \
                f"metadata={self.metadata.shape if self.metadata is not None else None})"
 
 
@@ -56,7 +60,11 @@ class DistributionLoader:
             if distribution is not None:
                 self.distributions.append(distribution)
                 sample_name = os.path.splitext(file_name)[0].split(f'_{slot_name}')[0]
+                # Check if raw or structured is present and remove it
+                sample_name = sample_name.split('_raw')[0] if '_raw' in sample_name else sample_name
+                sample_name = sample_name.split('_structured')[0] if '_structured' in sample_name else sample_name
                 self.ids.append(sample_name)
+                #todo maybe add data type as a variable
 
         logging.info(f"Loaded {len(self.distributions)} distributions with their IDs")
         return Distribution(self.distributions, self.ids)
@@ -64,15 +72,17 @@ class DistributionLoader:
     def __repr__(self):
         return f"DistributionLoader(distributions={len(self.distributions)}, folder_path={self.folder_path})"
 
+#todo fix all kwargs
 
 class DistributionDistanceCalculator:
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
         self.data = data
         self.distributions = []
         self.ids = []
         self.distance_matrix = None
+        self.distance_metric = None
 
-        self._load_distributions()
+        self._load_distributions(**kwargs)
         #todo check if the better name is DistributionDistanceHandler or DistributionTransformer
 
     def _load_distributions(self, **kwargs):
@@ -117,9 +127,9 @@ class DistributionDistanceCalculator:
               'kulczynski1', 'mahalanobis', 'matching', 'minkowski', 'rogerstanimoto', 
               'russellrao', 'seuclidean', 'sokalmichener', 'sokalsneath', 'sqeuclidean', 
               'yule' (from scipy)
-            - 'wd', 'wasserstein' (Wasserstein distance)
+            - 'wd', 'wsd', 'wasserstein' (Wasserstein distance)
             - 'jsd', 'jensenshannondivergence' (Jensen-Shannon divergence)
-            - 'KL', 'kullbackleibler' (Kullback-Leibler divergence)
+            - 'KL', 'kl', 'kullbackleibler' (Kullback-Leibler divergence)
         **kwargs : dict, optional
             Additional keyword arguments to pass to the distance metric function.
 
@@ -152,10 +162,13 @@ class DistributionDistanceCalculator:
             case _:
                 raise ValueError(f"Unsupported distance metric '{metric}'")
 
+        self.distance_metric = metric
         return self.distance_matrix
 
     def __repr__(self):
-        return f"DistributionAnalyzer(distributions={len(self.distributions)}, ids={len(self.ids)})"
+        return f"DistributionDistanceCalculator(distributions={len(self.distributions)}, ids={len(self.ids)}, " \
+                f"distance_matrix={self.distance_matrix.shape if self.distance_matrix is not None else None} " \
+                f"distance_metric={self.distance_metric})"
 
     def run(self, padding=True, smoothing=True, distance_metric='jsd', **kwargs):
         """
@@ -181,84 +194,125 @@ class DistributionDistanceCalculator:
         if smoothing:
             self.apply_smoothing_normalization()
         self.calculate_distance_matrix(distance_metric, **kwargs)
-        return Distribution(self.distributions, self.ids, self.distance_matrix)
+        #todo maybe return self to be able to chain the methods
+        return Distribution(self.distributions, self.ids, distance_matrix=self.distance_matrix, distance_metric=self.distance_metric)
 
+#todo fix to use slot_name as variable
 
 class DistributionHeatmapPlotter:
-    def __init__(self, data, ids=None, metadata=None):
+    def __init__(self, data, ids=None, metadata=None, **kwargs):
         self.data = data
         self.metadata = load_data(metadata, message=False)
         self.distribution_object = None
+        self.multi_index_all = None
+        self.distance_matrix_annotated = None
+        self.metadata_multi_idx_colors = None
         
         self._load_distributions_distance()
 
-    def _load_distributions_distance(self):
+        self.metric_ranges = {
+            'jensenshannon': (0, 1),
+            'braycurtis': (0, 1),
+            'canberra': (0, float('inf')),
+            'chebyshev': (0, float('inf')),
+            'cityblock': (0, float('inf')),
+            'correlation': (-1, 1),
+            'cosine': (0, 1),
+            'dice': (0, 1),
+            'euclidean': (0, float('inf')),
+            'hamming': (0, 1),
+            'jaccard': (0, 1),
+            'kulczynski1': (0, 1),
+            'mahalanobis': (0, float('inf')),
+            'matching': (0, 1),
+            'minkowski': (0, float('inf')),
+            'rogerstanimoto': (0, 1),
+            'russellrao': (0, 1),
+            'seuclidean': (0, float('inf')),
+            'sokalmichener': (0, 1),
+            'sokalsneath': (0, 1),
+            'sqeuclidean': (0, float('inf')),
+            'yule': (0, 1),
+            'wd': (0, float('inf')),
+            'wsd': (0, float('inf')),
+            'wasserstein': (0, float('inf')),
+            'jsd': (0, 1),
+            'jensenshannondivergence': (0, 1),
+            'KL': (0, float('inf')),
+            'kl': (0, float('inf')),
+            'kullbackleibler': (0, float('inf'))
+        }
+
+    def _load_distributions_distance(self, **kwargs):
         if isinstance(self.data, Distribution):
             logging.info("Loaded Distribution object.")
             self.distribution_object = self.data
         else:
             logging.info
-            self.distribution_object = DistributionDistanceCalculator(self.data).run()
+            self.distribution_object = DistributionDistanceCalculator(self.data, **kwargs).run(**kwargs)
 
         self.distributions = self.distribution_object.distributions
         self.ids = self.distribution_object.ids
         self.distance_matrix = self.distribution_object.distance_matrix
+        self.distance_metric = self.distribution_object.distance_metric
 
-    def load_data_numpy(self, data):
-        p_infer_dict = {}
-        npy_files = glob.glob(f"{data}/*.npy")
-        for npy_file in npy_files:
-            data = np.load(npy_file)
-            #todo make it more general for the split with p_infer if present else npy
-            sample_name = os.path.basename(npy_file).split('_p_infer.npy')[0]
-            p_infer_dict[sample_name] = data
-        logging.info(f"Loaded {len(npy_files)} files")
-        return p_infer_dict
-
-    def calculate_distance(self, p_infer_dict, distance_method='wsd'):
-    #todo check if better to always have method wo prefix clustering_method, distance_method ....
-        wasserstein_distance_val_all = np.array([[wasserstein_distance(value1, value2) for value1 in p_infer_dict.values()]
-                        for value2 in p_infer_dict.values()])
-        wasserstein_distance_df_all = pd.DataFrame(wasserstein_distance_val_all, index=p_infer_dict.keys(), columns=p_infer_dict.keys())
-        return wasserstein_distance_df_all
-
-    def process_metadata(self, metadata, names_order):
+    def process_metadata(self):
+        if self.metadata is None:
+            logging.warning("No metadata provided. Skipping metadata processing.")
+            return None
+        
         # Ensure no leading or trailing whitespace
-        metadata.columns = metadata.columns.str.strip()
+        self.metadata.columns = self.metadata.columns.str.strip()
 
         # Sort metadata by id or index if id is not present to match the order of the data
         try:
-            if 'id' in metadata.columns:
-                metadata = metadata.set_index('id').reindex(names_order).reset_index()
+            if 'id' in self.metadata.columns:
+                # Check if id and self.ids match
+                if not self.metadata['id'].isin(self.ids).all():
+                    logging.warning("Metadata id does not match the data names (name_p_infer.npy). Not using metadata.")
+                    self.metadata = None
+                else:
+                    logging.info("Metadata id matches the data names (name_p_infer.npy). Sorting by id.")
+                self.metadata = self.metadata.set_index('id').reindex(self.ids).reset_index()
             else:
                 logging.warning("Metadata does not contain an 'id' column. Sorting by index.")
-                metadata = metadata.reindex(names_order).reset_index()
+                self.metadata = metadata.reindex(self.ids).reset_index()
 
         except:
             logging.warning("Metadata id or index does not match the data names (name_p_infer.npy). Not using metadata.")
-            metadata = None
+            self.metadata = None
 
-        return metadata
+        return self.metadata
 
-    def create_multi_index(self, metadata, columns=None):
+    def create_multi_index(self, columns=None):
+        if self.metadata is None:
+            logging.warning("No metadata provided. Skipping multi-index creation.")
+            return None
         if columns is None:
-            columns_to_use = [col for col in metadata.columns if col != 'id']
+            columns_to_use = [col for col in self.metadata.columns if col != 'id']
         else:
-            columns_to_use = [col for col in columns if col in metadata.columns]
-            missing_cols = [col for col in columns if col not in metadata.columns]
+            columns_to_use = [col for col in columns if col in self.metadata.columns]
+            missing_cols = [col for col in columns if col not in self.metadata.columns]
             if missing_cols:
                 logging.warning(f"Columns {missing_cols} not found in metadata. Skipping these columns.")
 
-        multi_index_all = pd.MultiIndex.from_arrays(
-            [metadata[col] for col in columns_to_use], 
+        self.multi_index_all = pd.MultiIndex.from_arrays(
+            [self.metadata[col] for col in columns_to_use], 
             names=columns_to_use)
         
-        return multi_index_all
+        return self.multi_index_all
+        #todo maybe change the name to metadata_multi_idx
 
-    def annotate_distance_matrix(self, distance_matrix, metadata_multi_idx):
-        distance_matrix.columns = metadata_multi_idx
-        distance_matrix.index = metadata_multi_idx
-        return distance_matrix
+    def annotate_distance_matrix(self):
+        self.distance_matrix_annotated = pd.DataFrame(self.distance_matrix, index=self.ids, columns=self.ids)
+        if self.multi_index_all is None:
+            logging.warning("No multi-index found. Skipping annotation.")
+            return self.distance_matrix_annotated
+        
+        self.distance_matrix_annotated.columns = self.multi_index_all
+        self.distance_matrix_annotated.index = self.multi_index_all
+
+        return self.distance_matrix_annotated
 
     def _create_color_palette(self, metadata, column, custom_palette=None):
         metadata[column] = metadata[column].astype(str)        
@@ -280,52 +334,56 @@ class DistributionHeatmapPlotter:
         
         return colors, lut
 
-    def assign_metadata_color(self, metadata_multi_idx):
+    def assign_metadata_color(self):
+        if self.multi_index_all is None:
+            logging.warning("No multi-index found. Skipping metadata color assignment.")
+            return None
         #todo add option for palette here
         # Create distinct palettes for each column using different seaborn palettes
         palette_options = ['Set2', 'Dark2', 'Accent', 'Pastel1', 'Spectral', 'RdYlBu', 'PRGn', 'PiYG', 'BrBG']
         color_palettes = {}
 
-        for i, col in enumerate(metadata_multi_idx.names):
-            level_values = metadata_multi_idx.get_level_values(col)
+        for i, col in enumerate(self.multi_index_all.names):
+            level_values = self.multi_index_all.get_level_values(col)
             palette = sns.color_palette(palette_options[i % len(palette_options)], n_colors=len(level_values.unique()))
             colors, lut = self._create_color_palette(pd.DataFrame({col: level_values}), col, custom_palette=palette)
             color_palettes[col] = {'colors': colors, 'lut': lut}
 
-        row_colors_df = pd.DataFrame({
-            col: color_palettes[col]['colors'] for col in metadata_multi_idx.names
-        }).set_index(metadata_multi_idx)
+        self.metadata_multi_idx_colors = pd.DataFrame({
+            col: color_palettes[col]['colors'] for col in self.multi_index_all.names
+        }).set_index(self.multi_index_all)
 
-        return row_colors_df
+        return self.metadata_multi_idx_colors
 
-    def plot_heatmap(self, distance_matrix_annotated, row_colors=None, col_colors=None, normalize=False):
-        #todo this range is only for wasserstein_distance_val_all 
-        #todo add jsd distance for calculation with range 0,1
-        v_min = -1 if normalize else distance_matrix_annotated.min().min()
-        v_max = 1 if normalize else distance_matrix_annotated.max().max()
+    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False):
+        v_min = self.distance_matrix_annotated.min().min()
+        v_max = self.distance_matrix_annotated.max().max()
 
-        g = sns.clustermap(distance_matrix_annotated, 
+        distance_metric_range = self.metric_ranges.get(self.distance_metric, (v_min, v_max))
+        if normalize:
+            v_min, v_max = distance_metric_range
+
+        g = sns.clustermap(self.distance_matrix_annotated, 
                     cmap="vlag", 
                     row_colors=row_colors, 
                     col_colors=col_colors,
                     vmin = v_min,
                     vmax = v_max,
-                    center=0.0,
+                    # center=0.0,
                     dendrogram_ratio=(.1, .2),
                     cbar_pos=(.02, .32, .03, .2),
                     linewidths=.75, 
                     method='ward',
                     figsize=(12, 13))
         #todo add legend and ax as option with show 
-        return g 
+        return g
+    
     def run(self, **kwargs):
-        p_infer_dict = self.load_data_numpy(self.data)
-        distance_matrix = self.calculate_distance(p_infer_dict)
-        metadata_ordered = self.process_metadata(self.metadata, distance_matrix.index) if self.metadata is not None else None
-        metadata_multi_idx = self.create_multi_index(metadata_ordered) if metadata_ordered is not None else None
-        distance_matrix_annotated = self.annotate_distance_matrix(distance_matrix, metadata_multi_idx) if metadata_multi_idx is not None else distance_matrix
-        metadata_multi_idx_colors = self.assign_metadata_color(metadata_multi_idx) if metadata_multi_idx is not None else None
-        self.plot_heatmap(distance_matrix_annotated, row_colors=metadata_multi_idx_colors, col_colors=metadata_multi_idx_colors, **kwargs)
+        self.process_metadata()
+        self.create_multi_index()
+        self.annotate_distance_matrix()
+        self.assign_metadata_color()
+        self.plot_heatmap(row_colors=self.metadata_multi_idx_colors, col_colors=self.metadata_multi_idx_colors, **kwargs)
         #todo add return for plot
 
 
