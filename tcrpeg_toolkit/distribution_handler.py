@@ -75,11 +75,11 @@ class DistributionDistanceCalculator:
         self._load_distributions()
         #todo check if the better name is DistributionDistanceHandler or DistributionTransformer
 
-    def _load_distributions(self):
+    def _load_distributions(self, **kwargs):
         if self.data is None:
             raise ValueError("No data provided. Load data first.")
         if not all(hasattr(self.data, attr) for attr in ['distributions', 'ids']):
-            self.data = DistributionLoader(self.data)
+            self.data = DistributionLoader(self.data, **kwargs)
         self.distributions = self.data.distributions
         self.ids = self.data.ids
 
