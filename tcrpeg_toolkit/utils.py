@@ -1,7 +1,9 @@
 import os
 import re
+import inspect
 import logging
 import warnings
+
 import pandas as pd
 import numpy as np
 
@@ -66,3 +68,8 @@ def load_data(input_data, message=True):
         except ValueError as e:
             logging.error(str(e))
             raise
+
+
+def filter_kwargs_for_function(func, kwargs):
+    valid_keys = set(inspect.signature(func).parameters)
+    return {key: value for key, value in kwargs.items() if key in valid_keys}
