@@ -22,79 +22,162 @@ class Distribution:
     distance_matrix: Optional[np.ndarray] = None
     metadata: Optional[pd.DataFrame] = None
     distance_metric: Optional[str] = None
+    distribution_type: Optional[str] = None
     
     def __repr__(self):
         return f"Distribution(distributions={len(self.distributions)}, ids={len(self.ids) if self.ids else None}, " \
+               f"distribution_type={self.distribution_type}, " \
                f"distance_matrix={self.distance_matrix.shape if self.distance_matrix is not None else None}, " \
                f"distance_metric={self.distance_metric}, " \
-               f"slot_name={self.slot_name}, " \
                f"metadata={self.metadata.shape if self.metadata is not None else None})"
 
 #todo Maybe separate distribution handler and distribution
 
 class DistributionLoader:
-    def __init__(self, folder_path, **kwargs):
+    def __init__(self, folder_path):
         self.folder_path = folder_path
-        self.distribution_object = None
-        self.distributions = []
-        self.sample_ids = []
-        self.load_distributions(**kwargs)
-
-    def load_distributions(self, slot_name='p_infer', message=False):
-        files = [f for f in os.listdir(self.folder_path) if f.endswith('.npy')]
+        
         self.distributions = []
         self.ids = []
-
-        for file_name in files:
-            file_path = os.path.join(self.folder_path, file_name)
-            data = np.load(file_path)
-
-            if data.dtype.names is not None:
-                # Extract a specific slot if it's a structured array
-                if slot_name in data.dtype.names:
-                    distribution = data[slot_name]
-                else:
-                    distribution = None  # or handle the absence of the slot differently
-                logging.info(f"Loaded structured array with names from {file_name}") if message else None
-            else:
-                # Handle regular array
-                distribution = data
-                logging.info(f"Loaded regular array from {file_name}") if message else None
-
-            # Append the loaded data and sample ID
-            if distribution is not None:
-                self.distributions.append(distribution)
-                sample_name = os.path.splitext(file_name)[0].split(f'_{slot_name}')[0]
-                # Check if raw or structured is present and remove it
-                sample_name = sample_name.split('_raw')[0] if '_raw' in sample_name else sample_name
-                sample_name = sample_name.split('_structured')[0] if '_structured' in sample_name else sample_name
-                self.ids.append(sample_name)
-                #todo maybe add data type as a variable
-
-        logging.info(f"Loaded {len(self.distributions)} distributions with their IDs")
-        return Distribution(self.distributions, self.ids)
 
     def __repr__(self):
         return f"DistributionLoader(distributions={len(self.distributions)}, folder_path={self.folder_path})"
 
-#todo fix all kwargs
+    def load_distributions(self, distribution_type='p_infer', message=False) -> Distribution:
+        files = [f for f in os.listdir(self.folder_path) if f.endswith('.npy')]
+        
+        for file_name in files:
+            file_path = os.path.join(self.folder_path, file_name)
+            data = np.load(file_path)
 
-class DistributionDistanceCalculator:
-    def __init__(self, data, **kwargs):
+            distribution = self._extract_slot(data, distribution_type, file_name, message)
+            if distribution is not None:
+                self.distributions.append(distribution)
+                self.ids.append(self._clean_sample_name(file_name, distribution_type))
+
+        logging.info(f"Loaded {len(self.distributions)} distributions with their IDs")
+        return Distribution(self.distributions, self.ids, distribution_type=distribution_type)
+
+    def _extract_slot(self, data, distribution_type, file_name, message) -> Optional[np.ndarray]:
+        if data.dtype.names and distribution_type in data.dtype.names:
+            logging.info(f"Loaded structured array with names from {file_name}") if message else None
+            return data[distribution_type]
+        elif not data.dtype.names:
+            logging.info(f"Loaded regular array from {file_name}") if message else None
+            return data
+        else:
+            logging.warning(f"Slot '{distribution_type}' not found in structured array '{file_name}'")
+            return None
+
+    def _clean_sample_name(self, file_name, distribution_type):
+        sample_name = os.path.splitext(file_name)[0].split(f'_{distribution_type}')[0]
+        return sample_name.replace('_raw', '').replace('_structured', '')
+
+    def load(self, distribution_type='p_infer', message=False) -> Distribution:
+        """
+        Executes the distribution handling process.
+        This method loads the distributions based on the specified type and 
+        optionally displays a message. It then loads metadata if a metadata 
+        path is provided and returns a Distribution object.
+        Args:
+            distribution_type (str): The type of distribution to load. Defaults to 'p_infer'.
+            message (bool): Flag to indicate whether to display a message. Defaults to False.
+        Returns:
+            Distribution: An instance of the Distribution class containing the loaded distributions 
+                          and metadata (if available).
+        """
+
+        self.load_distributions(distribution_type, message)
+
+        return Distribution(self.distributions, self.ids, distribution_type=distribution_type)
+
+#todo this can go in utils and be used in other places
+class MetadataLoader:
+    def __init__(self, metadata):
+        self.metadata = load_data(metadata)
+
+    def _process_metadata(self, ids):
+        if self.metadata is None:
+            logging.warning("No metadata provided. Skipping metadata processing.")
+            return None
+
+        # Ensure no leading or trailing whitespace
+        self.metadata.columns = self.metadata.columns.str.strip()
+
+        try:
+            if 'id' in self.metadata.columns:
+                # Check if metadata 'id' column matches provided ids
+                if not self.metadata['id'].isin(ids).all():
+                    logging.warning("Metadata id does not match the provided ids. Not using metadata.")
+                    self.metadata = None
+                else:
+                    logging.info("Metadata id matches the provided ids. Sorting by id.")
+                    self.metadata = self.metadata.set_index('id').reindex(ids).reset_index()
+            else:
+                logging.warning("Metadata does not contain an 'id' column. Sorting by index.")
+                self.metadata = self.metadata.reindex(ids).reset_index()
+
+        except Exception as e:
+            logging.warning(f"Error processing metadata: {e}. Not using metadata.")
+            self.metadata = None
+
+        return self.metadata
+    
+    def get_metadata(self):
+        return self.metadata
+
+    def load(self, ids=None):
+        self._process_metadata(ids=ids)
+        return self.metadata
+
+
+class DistributionDataLoader:
+    def __init__(self, folder_path, metadata=None):
+        self.distribution_loader = DistributionLoader(folder_path)
+        self.metadata_loader = MetadataLoader(metadata)
+
+    def load(self, distribution_type='p_infer', message=False) -> Distribution:
+        self.distribution_loader.load(distribution_type=distribution_type, message=message)
+
+        if self.metadata_loader:
+            self.metadata_loader.load(ids=self.distribution_loader.ids)
+
+        return Distribution(self.distribution_loader.distributions, self.distribution_loader.ids, 
+                            distribution_type=distribution_type, metadata=self.metadata_loader.metadata)
+
+    def get_distributions(self):
+        return self.distribution_loader.distributions
+
+    def get_metadata(self):
+        return self.metadata_loader.metadata if self.metadata_loader else None
+
+    def get_ids(self):
+        return self.distribution_loader.ids
+
+
+class DistributionProcessor:
+    def __init__(self, data, distribution_type='p_infer'):
         self.data = data
+        self.distribution_type = distribution_type
+        
         self.distributions = []
         self.ids = []
         self.distance_matrix = None
         self.distance_metric = None
 
-        self._load_distributions(**kwargs)
-        #todo check if the better name is DistributionDistanceHandler or DistributionTransformer
+        self._load_distributions()
 
-    def _load_distributions(self, **kwargs):
+    def _load_distributions(self):
         if self.data is None:
             raise ValueError("No data provided. Load data first.")
+        
         if not all(hasattr(self.data, attr) for attr in ['distributions', 'ids']):
-            self.data = DistributionLoader(self.data, **kwargs)
+            try:
+                self.data = DistributionLoader(self.data).load(distribution_type=self.distribution_type)
+            except:
+                logging.error("Failed to load data. Check the provided data.")
+                return None
+
         self.distributions = self.data.distributions
         self.ids = self.data.ids
 
@@ -171,13 +254,14 @@ class DistributionDistanceCalculator:
         return self.distance_matrix
 
     def __repr__(self):
-        return f"DistributionDistanceCalculator(distributions={len(self.distributions)}, ids={len(self.ids)}, " \
+        return f"DistributionProcessor(distributions={len(self.distributions)}, ids={len(self.ids)}, " \
                 f"distance_matrix={self.distance_matrix.shape if self.distance_matrix is not None else None} " \
                 f"distance_metric={self.distance_metric})"
 
     def run(self, padding=True, smoothing=True, distance_metric='jsd', **kwargs):
         """
         Run the distribution analyzer with optional padding, smoothing, and distance matrix calculation.
+
         Parameters:
         -----------
         padding : bool, optional
@@ -190,32 +274,35 @@ class DistributionDistanceCalculator:
             Additional keyword arguments to pass to the distance metric function.
             For example, for 'jensenshannon' metric, you can pass 'w' for the weighting parameter.
             rns:
+            
+        Returns:
         --------
-        numpy.ndarray
-            A distance matrix calculated using the specified metric.
+        Distribution
+            A Distribution instance containing:
+            - distributions: processed distribution data
+            - ids: sample identifiers
+            - distance_matrix: calculated distance matrix
+            - distance_metric: name of metric used
         """
+        if len(self.distributions) == 0:
+            logging.error("No distributions found in the provided data.")
+            return None
+        
         if padding:
             self.pad_and_normalize_distributions()
         if smoothing:
             self.apply_smoothing_normalization()
+
+        # Calculate the distance matrix
         self.calculate_distance_matrix(distance_metric, **kwargs)
-        #todo maybe return self to be able to chain the methods
+        
         return Distribution(self.distributions, self.ids, distance_matrix=self.distance_matrix, distance_metric=self.distance_metric)
 
-#todo fix to use slot_name as variable
+#todo separate distribution distance and metadata from plot
 
 class DistributionHeatmapPlotter:
-    def __init__(self, data, ids=None, metadata=None, **kwargs):
-        self.data = data
-        self.metadata = load_data(metadata, message=False)
-        self.distribution_object = None
-        self.multi_index_all = None
-        self.distance_matrix_annotated = None
-        self.metadata_multi_idx_colors = None
-        
-        self._load_distributions_distance(**kwargs)
-
-        self.metric_ranges = {
+    # Class variable 
+    metric_ranges = {
             'jensenshannon': (0, 1),
             'braycurtis': (0, 1),
             'canberra': (0, float('inf')),
@@ -247,6 +334,16 @@ class DistributionHeatmapPlotter:
             'kl': (0, float('inf')),
             'kullbackleibler': (0, float('inf'))
         }
+    
+    def __init__(self, data, ids=None, metadata=None, **kwargs):
+        self.data = data
+        self.metadata = load_data(metadata, message=False)
+        self.distribution_object = None
+        self.multi_index_all = None
+        self.distance_matrix_annotated = None
+        self.metadata_multi_idx_colors = None
+        
+        self._load_distributions_distance(**kwargs)
 
     def _load_distributions_distance(self, **kwargs):
         if isinstance(self.data, Distribution):
@@ -254,19 +351,26 @@ class DistributionHeatmapPlotter:
             self.distribution_object = self.data
         else:
             logging.info("Loading distributions and calculating distance matrix...")
+
             # Split kwargs explicitly for each method
             distance_init_kwargs = filter_kwargs_for_function(
-                DistributionDistanceCalculator.__init__, kwargs)
-            # Remove any init kwargs from the run kwargs to prevent overlap
-            distance_init_kwargs = {k: v for k, v in kwargs.items() 
+                DistributionProcessor.__init__, kwargs)
+
+            # Define the kwargs for the init method
+            run_kwargs = {k: v for k, v in kwargs.items() 
                         if k not in distance_init_kwargs}
+
+            # Remove any init kwargs from the run kwargs to prevent overlap
             distance_run_kwargs = filter_kwargs_for_function(
-                DistributionDistanceCalculator.run, run_kwargs)
-                
-            calculator = DistributionDistanceCalculator(
+                DistributionProcessor.run, run_kwargs)
+            
+            calculator = DistributionProcessor(
                 self.data, **distance_init_kwargs)
             self.distribution_object = calculator.run(**distance_run_kwargs)
 
+        if self.distribution_object is None:
+            logging.error("Failed to load distributions or calculate distance matrix.")
+            return None
 
         self.distributions = self.distribution_object.distributions
         self.ids = self.distribution_object.ids
@@ -380,6 +484,10 @@ class DistributionHeatmapPlotter:
         v_max = self.distance_matrix_annotated.max().max()
 
         distance_metric_range = self.metric_ranges.get(self.distance_metric, (v_min, v_max))
+
+        if distance_metric_range[0] == float('-inf') or distance_metric_range[1] == float('inf'):
+            normalize = False
+
         if normalize:
             v_min, v_max = distance_metric_range
 
@@ -441,6 +549,9 @@ class DistributionHeatmapPlotter:
         self.plot_heatmap(row_colors=self.metadata_multi_idx_colors, col_colors=self.metadata_multi_idx_colors, **kwargs)
         #todo add return for plot
 
+
+# class DistributionHandler:
+#     return None
 
 class TCRpegInference:
     def __init__(self, data, sample_ids=None):
