@@ -8,6 +8,8 @@ from scipy.stats import entropy, wasserstein_distance
 from scipy.cluster import hierarchy
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+
 
 from tcrpeg_toolkit.utils import load_data, filter_kwargs_for_function
 
@@ -368,6 +370,9 @@ class DistributionHeatmapPlotter:
         self.metadata_multi_idx_colors = pd.DataFrame({
             col: color_palettes[col]['colors'] for col in self.multi_index_all.names
         }).set_index(self.multi_index_all)
+        
+        self.color_palettes = color_palettes  # Store the color palettes with 'lut'
+
 
         return self.metadata_multi_idx_colors
 
@@ -378,39 +383,54 @@ class DistributionHeatmapPlotter:
         distance_metric_range = self.metric_ranges.get(self.distance_metric, (v_min, v_max))
         if normalize:
             v_min, v_max = distance_metric_range
+        
+        if self.metadata is None:
+            g = sns.clustermap(self.distance_matrix_annotated, 
+                        cmap="vlag", 
+                        row_colors=row_colors, 
+                        col_colors=col_colors,
+                        vmin = v_min,
+                        vmax = v_max,
+                        # center=0.0,
+                        dendrogram_ratio=(.1, .2),
+                        cbar_pos=(1, .32, .03, .2),
+                        linewidths=0,
+                        method='ward',
+                        figsize=(12, 13))
+    
+        else:
+            g = sns.clustermap(self.distance_matrix_annotated, 
+                        cmap="vlag", 
+                        row_colors=row_colors, 
+                        col_colors=col_colors,
+                        vmin = v_min,
+                        vmax = v_max,
+                        # center=0.0,
+                        dendrogram_ratio=(.1, .2),
+                        cbar_pos=(1, .32, .03, .2),
+                        linewidths=0, 
+                        xticklabels=False,  # Removes column names
+                        yticklabels=False,
+                        method='ward',
+                        figsize=(12, 13))
+            # Add black lines between the heatmap and the row/col colors
+            for ax in [g.ax_col_colors, g.ax_row_colors]:
+                if ax is not None:  # Check if the axis exists
+                    for spine in ax.spines.values():
+                        spine.set_visible(True) 
+                        spine.set_edgecolor('black')
+                        spine.set_linewidth(1)
+            
+            # add legends
+            legend_elements = []
+            for level, palette in  self.color_palettes.items():
+                lut = palette['lut']
+                for value, color in lut.items():
+                    legend_elements.append(Patch(facecolor=color, edgecolor='black', label=f"{level}: {value}"))
+            
+            g.ax_heatmap.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.2, 1))
 
-        center = (v_max + v_min) / 2
-
-        # Generate linkage from the distance matrix
-        row_linkage = hierarchy.linkage(self.distance_matrix, method='average')
-        col_linkage = hierarchy.linkage(self.distance_matrix, method='average')  # Assuming the same for columns
-
-        # Creating the clustermap with row and column colors
-        sns.clustermap(self.distance_matrix_annotated,
-                    cmap="vlag",
-                    row_colors=row_colors,
-                    col_colors=row_colors,  # Assuming you want the same for columns
-                    row_linkage=row_linkage,
-                    col_linkage=col_linkage,
-                    figsize=(8, 8))
-        plt.show()
-
-
-
-        # g = sns.clustermap(self.distance_matrix_annotated, 
-        #             cmap="vlag", 
-        #             row_colors=row_colors, 
-        #             col_colors=col_colors,
-        #             vmin = v_min,
-        #             vmax = v_max,
-        #             center=center,
-        #             dendrogram_ratio=(.1, .2),
-        #             cbar_pos=(.02, .32, .03, .2),
-        #             linewidths=.75, 
-        #             method='ward',
-        #             figsize=(12, 13))
-        # #todo add legend and ax as option with show 
-        # return g
+        return g
     
     def run(self, **kwargs):
         self.process_metadata()
