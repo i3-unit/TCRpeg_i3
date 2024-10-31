@@ -1,6 +1,9 @@
 import os
 import glob
 import logging
+from dataclasses import dataclass, field
+from typing import List, Optional
+
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import pdist, squareform, jensenshannon
@@ -10,18 +13,16 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
-
 from tcrpeg_toolkit.utils import load_data, filter_kwargs_for_function
 
+@dataclass
 class Distribution:
-    def __init__(self, distributions, ids=None, **kwargs):
-        self.distributions = distributions
-        self.ids = ids
-        self.distance_matrix = kwargs.get('distance_matrix', None)
-        self.metadata = kwargs.get('metadata', None)
-        self.distance_metric = kwargs.get('distance_metric', None)
-        self.slot_name = kwargs.get('slot_name', None)
-
+    distributions: List[np.ndarray]
+    ids: List[str] = field(default_factory=list)
+    distance_matrix: Optional[np.ndarray] = None
+    metadata: Optional[pd.DataFrame] = None
+    distance_metric: Optional[str] = None
+    
     def __repr__(self):
         return f"Distribution(distributions={len(self.distributions)}, ids={len(self.ids) if self.ids else None}, " \
                f"distance_matrix={self.distance_matrix.shape if self.distance_matrix is not None else None}, " \
@@ -30,8 +31,6 @@ class Distribution:
                f"metadata={self.metadata.shape if self.metadata is not None else None})"
 
 #todo Maybe separate distribution handler and distribution
-
-#todo fix kwargs 
 
 class DistributionLoader:
     def __init__(self, folder_path, **kwargs):
@@ -383,6 +382,8 @@ class DistributionHeatmapPlotter:
         distance_metric_range = self.metric_ranges.get(self.distance_metric, (v_min, v_max))
         if normalize:
             v_min, v_max = distance_metric_range
+
+        center = (v_max + v_min) / 2
         
         if self.metadata is None:
             g = sns.clustermap(self.distance_matrix_annotated, 
@@ -391,7 +392,7 @@ class DistributionHeatmapPlotter:
                         col_colors=col_colors,
                         vmin = v_min,
                         vmax = v_max,
-                        # center=0.0,
+                        center=center,
                         dendrogram_ratio=(.1, .2),
                         cbar_pos=(1, .32, .03, .2),
                         linewidths=0,
@@ -405,7 +406,7 @@ class DistributionHeatmapPlotter:
                         col_colors=col_colors,
                         vmin = v_min,
                         vmax = v_max,
-                        # center=0.0,
+                        center=center,
                         dendrogram_ratio=(.1, .2),
                         cbar_pos=(1, .32, .03, .2),
                         linewidths=0, 
