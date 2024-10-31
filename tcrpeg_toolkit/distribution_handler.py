@@ -455,19 +455,40 @@ class DistributionHeatmapPlotter:
         
         return colors, lut
 
-    def assign_metadata_color(self):
+    def assign_metadata_color(self, palette_mapping=None, filter_existing_values=True):
         if self.multi_index_all is None:
             logging.warning("No multi-index found. Skipping metadata color assignment.")
             return None
         #todo add option for palette here
         # Create distinct palettes for each column using different seaborn palettes
         palette_options = ['Set2', 'Dark2', 'Accent', 'Pastel1', 'Spectral', 'RdYlBu', 'PRGn', 'PiYG', 'BrBG']
+
+        # If palette options is shorter than the number of columns, repeat the options
+        if len(palette_options) < len(self.multi_index_all.names):
+            palette_options = palette_options * (len(self.multi_index_all.names) // len(palette_options) + 1)
+        
         color_palettes = {}
 
         for i, col in enumerate(self.multi_index_all.names):
             level_values = self.multi_index_all.get_level_values(col)
             palette = sns.color_palette(palette_options[i % len(palette_options)], n_colors=len(level_values.unique()))
-            colors, lut = self._create_color_palette(pd.DataFrame({col: level_values}), col, custom_palette=palette)
+            if palette_mapping and col in palette_mapping:
+                if isinstance(palette_mapping[col], dict):
+                    # If a dictionary mapping is provided, use it directly as the palette
+                    palette = palette_mapping[col]
+                    existing_values = level_values.values
+                    if filter_existing_values:
+                        palette = {k: v for k, v in palette.items() if k in existing_values}
+                    # , index=pd.DataFrame({col: level_values}).index
+                    colors = pd.Series(level_values).map(palette)
+                    lut = palette
+                else:
+                    # If a seaborn palette name or list of colors is provided
+                    palette = palette_mapping[col]
+                    colors, lut = self._create_color_palette(pd.DataFrame({col: level_values}), col, custom_palette=palette)
+            else:
+                palette = sns.color_palette(palette_options[i % len(palette_options)], n_colors=len(level_values.unique()))
+                colors, lut = self._create_color_palette(pd.DataFrame({col: level_values}), col, custom_palette=palette)
             color_palettes[col] = {'colors': colors, 'lut': lut}
 
         self.metadata_multi_idx_colors = pd.DataFrame({
@@ -475,7 +496,6 @@ class DistributionHeatmapPlotter:
         }).set_index(self.multi_index_all)
         
         self.color_palettes = color_palettes  # Store the color palettes with 'lut'
-
 
         return self.metadata_multi_idx_colors
 
@@ -555,14 +575,13 @@ class DistributionHeatmapPlotter:
         else:
             return g
     
-    def run(self, **kwargs):
+    def run(self, palette_mapping=None, filter_existing_values=None, **kwargs):
         self.process_metadata()
         self.create_multi_index()
         self.annotate_distance_matrix()
-        self.assign_metadata_color()
-        self.plot_heatmap(row_colors=self.metadata_multi_idx_colors, col_colors=self.metadata_multi_idx_colors, **kwargs)
-        #todo add return for plot
-
+        self.assign_metadata_color(palette_mapping=palette_mapping, filter_existing_values=filter_existing_values)
+        plot = self.plot_heatmap(row_colors=self.metadata_multi_idx_colors, col_colors=self.metadata_multi_idx_colors, **kwargs)
+        return plot
 
 # class DistributionHandler:
 #     return None
