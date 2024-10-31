@@ -5,10 +5,11 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import pdist, squareform, jensenshannon
 from scipy.stats import entropy, wasserstein_distance
+from scipy.cluster import hierarchy
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from tcrpeg_toolkit.utils import load_data
+from tcrpeg_toolkit.utils import load_data, filter_kwargs_for_function
 
 class Distribution:
     def __init__(self, distributions, ids=None, **kwargs):
@@ -26,6 +27,9 @@ class Distribution:
                f"slot_name={self.slot_name}, " \
                f"metadata={self.metadata.shape if self.metadata is not None else None})"
 
+#todo Maybe separate distribution handler and distribution
+
+#todo fix kwargs 
 
 class DistributionLoader:
     def __init__(self, folder_path, **kwargs):
@@ -208,7 +212,7 @@ class DistributionHeatmapPlotter:
         self.distance_matrix_annotated = None
         self.metadata_multi_idx_colors = None
         
-        self._load_distributions_distance()
+        self._load_distributions_distance(**kwargs)
 
         self.metric_ranges = {
             'jensenshannon': (0, 1),
@@ -248,8 +252,20 @@ class DistributionHeatmapPlotter:
             logging.info("Loaded Distribution object.")
             self.distribution_object = self.data
         else:
-            logging.info
-            self.distribution_object = DistributionDistanceCalculator(self.data, **kwargs).run(**kwargs)
+            logging.info("Loading distributions and calculating distance matrix...")
+            # Split kwargs explicitly for each method
+            distance_init_kwargs = filter_kwargs_for_function(
+                DistributionDistanceCalculator.__init__, kwargs)
+            # Remove any init kwargs from the run kwargs to prevent overlap
+            distance_init_kwargs = {k: v for k, v in kwargs.items() 
+                        if k not in distance_init_kwargs}
+            distance_run_kwargs = filter_kwargs_for_function(
+                DistributionDistanceCalculator.run, run_kwargs)
+                
+            calculator = DistributionDistanceCalculator(
+                self.data, **distance_init_kwargs)
+            self.distribution_object = calculator.run(**distance_run_kwargs)
+
 
         self.distributions = self.distribution_object.distributions
         self.ids = self.distribution_object.ids
@@ -363,20 +379,38 @@ class DistributionHeatmapPlotter:
         if normalize:
             v_min, v_max = distance_metric_range
 
-        g = sns.clustermap(self.distance_matrix_annotated, 
-                    cmap="vlag", 
-                    row_colors=row_colors, 
-                    col_colors=col_colors,
-                    vmin = v_min,
-                    vmax = v_max,
-                    # center=0.0,
-                    dendrogram_ratio=(.1, .2),
-                    cbar_pos=(.02, .32, .03, .2),
-                    linewidths=.75, 
-                    method='ward',
-                    figsize=(12, 13))
-        #todo add legend and ax as option with show 
-        return g
+        center = (v_max + v_min) / 2
+
+        # Generate linkage from the distance matrix
+        row_linkage = hierarchy.linkage(self.distance_matrix, method='average')
+        col_linkage = hierarchy.linkage(self.distance_matrix, method='average')  # Assuming the same for columns
+
+        # Creating the clustermap with row and column colors
+        sns.clustermap(self.distance_matrix_annotated,
+                    cmap="vlag",
+                    row_colors=row_colors,
+                    col_colors=row_colors,  # Assuming you want the same for columns
+                    row_linkage=row_linkage,
+                    col_linkage=col_linkage,
+                    figsize=(8, 8))
+        plt.show()
+
+
+
+        # g = sns.clustermap(self.distance_matrix_annotated, 
+        #             cmap="vlag", 
+        #             row_colors=row_colors, 
+        #             col_colors=col_colors,
+        #             vmin = v_min,
+        #             vmax = v_max,
+        #             center=center,
+        #             dendrogram_ratio=(.1, .2),
+        #             cbar_pos=(.02, .32, .03, .2),
+        #             linewidths=.75, 
+        #             method='ward',
+        #             figsize=(12, 13))
+        # #todo add legend and ax as option with show 
+        # return g
     
     def run(self, **kwargs):
         self.process_metadata()
