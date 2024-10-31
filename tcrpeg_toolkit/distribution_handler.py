@@ -335,7 +335,7 @@ class DistributionHeatmapPlotter:
             'kullbackleibler': (0, float('inf'))
         }
     
-    def __init__(self, data, ids=None, metadata=None, **kwargs):
+    def __init__(self, data, ids=None, metadata=None,  **kwargs):
         self.data = data
         self.metadata = load_data(metadata, message=False)
         self.distribution_object = None
@@ -479,7 +479,7 @@ class DistributionHeatmapPlotter:
 
         return self.metadata_multi_idx_colors
 
-    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False):
+    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None):
         v_min = self.distance_matrix_annotated.min().min()
         v_max = self.distance_matrix_annotated.max().max()
 
@@ -502,10 +502,10 @@ class DistributionHeatmapPlotter:
                         vmax = v_max,
                         center=center,
                         dendrogram_ratio=(.1, .2),
-                        cbar_pos=(1, .32, .03, .2),
+                        cbar_pos=(1, .6, .03, .2),
                         linewidths=0,
                         method='ward',
-                        figsize=(12, 13))
+                        figsize=(6, 6))
     
         else:
             g = sns.clustermap(self.distance_matrix_annotated, 
@@ -516,12 +516,12 @@ class DistributionHeatmapPlotter:
                         vmax = v_max,
                         center=center,
                         dendrogram_ratio=(.1, .2),
-                        cbar_pos=(1, .32, .03, .2),
+                        cbar_pos=(1, .6, .03, .2),
                         linewidths=0, 
                         xticklabels=False,  # Removes column names
                         yticklabels=False,
                         method='ward',
-                        figsize=(12, 13))
+                        figsize=(6, 6))
             # Add black lines between the heatmap and the row/col colors
             for ax in [g.ax_col_colors, g.ax_row_colors]:
                 if ax is not None:  # Check if the axis exists
@@ -536,10 +536,24 @@ class DistributionHeatmapPlotter:
                 lut = palette['lut']
                 for value, color in lut.items():
                     legend_elements.append(Patch(facecolor=color, edgecolor='black', label=f"{level}: {value}"))
+             
+            # Add the legend to the heatmap
+            legend = g.ax_heatmap.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.25, .75), fontsize='small')
+            legend.set_bbox_to_anchor((1.2, 0.25, 0.3, 0.5), transform=g.ax_heatmap.transAxes)
             
-            g.ax_heatmap.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.2, 1))
-
-        return g
+        if save is True:
+            if output_dir is None:
+                logging.warning("No output directory provided. Saving in working directory.")
+                logging.info("Saving plot")
+                g.savefig(f'{self.distance_metric}_heatmap_pinfer.pdf', format='pdf', bbox_inches='tight')
+            elif not os.path.exists(output_dir):
+                logging.warning(f"Output directory {output_dir} does not exist. Skipping plot saving.")
+                return g
+            else: 
+                logging.info("Saving plot")
+                g.savefig(f'{output_dir}/{self.distance_metric}_heatmap_pinfer.pdf', format='pdf', bbox_inches='tight')
+        else:
+            return g
     
     def run(self, **kwargs):
         self.process_metadata()
