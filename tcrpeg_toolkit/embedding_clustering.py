@@ -140,6 +140,8 @@ class EmbeddingClustering:
     def hdbscan_clustering(self, k=4):
         logging.info('Applying hdbscan...')
         subcluster_labels = np.full(self.embeddings.shape[0], -1)  # Initialize with -1 for outliers
+        subcluster_min_span_tree = {}
+        
         for supercluster in range(k):
             mask = self.cluster_assignments == supercluster
             if np.sum(mask) > 0:
@@ -147,12 +149,13 @@ class EmbeddingClustering:
                 hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=5, gen_min_span_tree=True)
                 hdbscan_labels = hdbscan_clusterer.fit_predict(cluster_data)
                 subcluster_labels[mask] = hdbscan_labels + subcluster_labels.max() + 1  # Ensure unique labels
+                subcluster_min_span_tree[supercluster] = hdbscan_clusterer.minimum_spanning_tree_
 
             # Calculate DBCV score
             # dbcv_score = hdbscan.validity.validity_index(cluster_data, hdbscan_labels, 
             #                                                 metric='euclidean', d=hdbscan_clusterer.relative_validity_)
             # logging.info(f"DBCV score: {dbcv_score}")
-
+        # print(subcluster_min_span_tree)
         self.cluster_assignments = subcluster_labels
         return self.cluster_assignments
     
