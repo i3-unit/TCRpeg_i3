@@ -501,7 +501,7 @@ class DistributionHeatmapPlotter:
 
         return self.metadata_multi_idx_colors
 
-    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None):
+    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None, **kwargs):
         v_min = self.distance_matrix_annotated.min().min()
         v_max = self.distance_matrix_annotated.max().max()
 
