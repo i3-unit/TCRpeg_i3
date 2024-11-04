@@ -26,7 +26,7 @@ from tcrpeg_toolkit.embedding_handler import EmbeddingHandler, Embedding
 class UMAPGenerator():
     def __init__(self, data, metadata=None, key_metadata='id'):
         self.data = data
-        self.metadata = load_data(metadata, message=False) if metadata else None
+        self.metadata = load_data(metadata, message=False)
         self.key_metadata = key_metadata
         self.embeddings = None
         self.embeddings_reduced = None
@@ -195,8 +195,6 @@ class UMAPGenerator():
              # Get additional arguments for sns.scatterplot and ax.legend
             scatter_kwargs = filter_kwargs_for_function(sns.scatterplot, kwargs)
             legend_kwargs = filter_kwargs_for_function(ax.legend, kwargs)
-            print(scatter_kwargs)
-            print(kwargs)
 
             sns.scatterplot(x=self.umap_data['UMAP_1'],
                             y=self.umap_data['UMAP_2'],
