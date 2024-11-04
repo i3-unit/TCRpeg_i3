@@ -73,3 +73,20 @@ def load_data(input_data, message=True):
 def filter_kwargs_for_function(func, kwargs):
     valid_keys = set(inspect.signature(func).parameters)
     return {key: value for key, value in kwargs.items() if key in valid_keys}
+
+
+# def filter_kwargs_for_function(func, kwargs):
+#     sig = inspect.signature(func)
+#     parameters = sig.parameters
+#     accepts_var_keyword = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in parameters.values())
+    
+#     if accepts_var_keyword:
+#         # Function accepts **kwargs, pass all through
+#         return kwargs
+#     else:
+#         # Filter kwargs to only those that the function can accept
+#         return {k: v for k, v in kwargs.items() if k in parameters}
+
+# def expected_arguments(func):
+#     sig = inspect.signature(func)
+#     return [p.name for p in sig.parameters.values() if p.default == inspect.Parameter.empty]

@@ -501,7 +501,7 @@ class DistributionHeatmapPlotter:
 
         return self.metadata_multi_idx_colors
 
-    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None):
+    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None, box_color='black', legend_edgecolor='black', **kwargs):
         v_min = self.distance_matrix_annotated.min().min()
         v_max = self.distance_matrix_annotated.max().max()
 
@@ -514,6 +514,10 @@ class DistributionHeatmapPlotter:
             v_min, v_max = distance_metric_range
 
         center = (v_max + v_min) / 2
+
+        # From kwargs 
+        linewidths = kwargs.pop('linewidths', 0)
+        method = kwargs.pop('method', 'ward')
         
         if self.metadata is None:
             g = sns.clustermap(self.distance_matrix_annotated, 
@@ -523,8 +527,8 @@ class DistributionHeatmapPlotter:
                         center=center,
                         dendrogram_ratio=(.1, .2),
                         cbar_pos=(1, .6, .03, .2),
-                        linewidths=0,
-                        method='ward',
+                        linewidths=linewidths,
+                        method=method,
                         figsize=(6, 6))
     
         else:
@@ -537,28 +541,29 @@ class DistributionHeatmapPlotter:
                         center=center,
                         dendrogram_ratio=(.1, .2),
                         cbar_pos=(1, .6, .03, .2),
-                        linewidths=0, 
+                        linewidths=linewidths, 
                         xticklabels=False,  # Removes column names
                         yticklabels=False,
-                        method='ward',
+                        method=method,
                         figsize=(6, 6))
             # Add black lines between the heatmap and the row/col colors
-            for ax in [g.ax_col_colors, g.ax_row_colors]:
-                if ax is not None:  # Check if the axis exists
-                    for spine in ax.spines.values():
-                        spine.set_visible(True) 
-                        spine.set_edgecolor('black')
-                        spine.set_linewidth(1)
-            
+            if box_color is not None:
+                for ax in [g.ax_col_colors, g.ax_row_colors]:
+                    if ax is not None:  # Check if the axis exists
+                        for spine in ax.spines.values():
+                            spine.set_visible(True) 
+                            spine.set_edgecolor(box_color)
+                            spine.set_linewidth(1)
+                
             # add legends
             legend_elements = []
             for level, palette in  self.color_palettes.items():
                 lut = palette['lut']
                 for value, color in lut.items():
-                    legend_elements.append(Patch(facecolor=color, edgecolor='black', label=f"{level}: {value}"))
+                    legend_elements.append(Patch(facecolor=color, edgecolor=legend_edgecolor, label=f"{level}: {value}"))
              
             # Add the legend to the heatmap
-            legend = g.ax_heatmap.legend(handles=legend_elements, loc='upper right', bbox_to_anchor=(1.25, .75), fontsize='small')
+            legend = g.ax_heatmap.legend(handles=legend_elements, loc='lower right', bbox_to_anchor=(1.25, .75), fontsize='small')
             legend.set_bbox_to_anchor((1.2, 0.25, 0.3, 0.5), transform=g.ax_heatmap.transAxes)
             
         if save is True:
@@ -580,7 +585,12 @@ class DistributionHeatmapPlotter:
         self.create_multi_index(columns=kwargs.get('columns'))
         self.annotate_distance_matrix()
         self.assign_metadata_color(palette_mapping=palette_mapping, filter_existing_values=filter_existing_values)
-        plot = self.plot_heatmap(row_colors=self.metadata_multi_idx_colors, col_colors=self.metadata_multi_idx_colors, **kwargs)
+
+        # Check if row_colors or col_colors is given as argument default to metadata multi index colors
+        row_colors = kwargs.pop('row_colors', self.metadata_multi_idx_colors )
+        col_colors = kwargs.pop('col_colors', self.metadata_multi_idx_colors)
+        plot = self.plot_heatmap(row_colors=row_colors, col_colors=col_colors, **kwargs)
+
         return plot
 
 # class DistributionHandler:
