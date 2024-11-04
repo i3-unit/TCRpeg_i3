@@ -150,7 +150,7 @@ class EmbeddingClustering:
             mask = self.cluster_assignments == supercluster
             if np.sum(mask) > 0:
                 cluster_data = self.embeddings[mask]
-                hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=5, gen_min_span_tree=True)
+                hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=5, gen_min_span_tree=False)
                 hdbscan_labels = hdbscan_clusterer.fit_predict(cluster_data)
                 subcluster_labels[mask] = hdbscan_labels + subcluster_labels.max() + 1  # Ensure unique labels
                 # subcluster_min_span_tree = hdbscan_clusterer.minimum_spanning_tree_.to_networkx()
