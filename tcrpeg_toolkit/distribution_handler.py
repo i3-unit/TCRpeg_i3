@@ -335,7 +335,7 @@ class DistributionHeatmapPlotter:
             'kullbackleibler': (0, float('inf'))
         }
     
-    def __init__(self, data, ids=None, metadata=None,  **kwargs):
+    def __init__(self, data, metadata=None,  **kwargs):
         self.data = data
         self.metadata = load_data(metadata, message=False)
         self.distribution_object = None
@@ -410,8 +410,10 @@ class DistributionHeatmapPlotter:
             logging.warning("No metadata provided. Skipping multi-index creation.")
             return None
         if columns is None:
+            logging.info("Using all columns for multi-index creation.")
             columns_to_use = [col for col in self.metadata.columns if col != 'id']
         else:
+            logging.info("Using specified columns for multi-index creation.")
             columns_to_use = [col for col in columns if col in self.metadata.columns]
             missing_cols = [col for col in columns if col not in self.metadata.columns]
             if missing_cols:
@@ -499,7 +501,7 @@ class DistributionHeatmapPlotter:
 
         return self.metadata_multi_idx_colors
 
-    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None):
+    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None):
         v_min = self.distance_matrix_annotated.min().min()
         v_max = self.distance_matrix_annotated.max().max()
 
@@ -515,9 +517,7 @@ class DistributionHeatmapPlotter:
         
         if self.metadata is None:
             g = sns.clustermap(self.distance_matrix_annotated, 
-                        cmap="vlag", 
-                        row_colors=row_colors, 
-                        col_colors=col_colors,
+                        cmap="vlag",
                         vmin = v_min,
                         vmax = v_max,
                         center=center,
@@ -577,7 +577,7 @@ class DistributionHeatmapPlotter:
     
     def run(self, palette_mapping=None, filter_existing_values=None, **kwargs):
         self.process_metadata()
-        self.create_multi_index()
+        self.create_multi_index(columns=kwargs.get('columns'))
         self.annotate_distance_matrix()
         self.assign_metadata_color(palette_mapping=palette_mapping, filter_existing_values=filter_existing_values)
         plot = self.plot_heatmap(row_colors=self.metadata_multi_idx_colors, col_colors=self.metadata_multi_idx_colors, **kwargs)

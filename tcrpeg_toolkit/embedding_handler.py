@@ -287,7 +287,20 @@ class EmbeddingHandler():
             logging.warning("No metadata to save.")
 
     #todo add option for raw embeddings and structured to be save
-
+    def downsample_embeddings(self, sample_size=None):
+        if sample_size is not None and self.embeddings.shape[0] > sample_size:
+            logging.info(f"Data loaded was downsampled to {sample_size}")
+            mask = np.random.choice(self.embeddings.shape[0], sample_size, replace=False)
+        else:
+            logging.warning(f"Data loaded from was not downsampled")
+            mask = np.arange(self.embeddings.shape[0])
+            
+        return EmbeddingHandler(data=Embedding(self.embeddings[mask], ids=self.ids[mask], 
+                                               sequences=self.sequences[mask]),
+                                name=self.name, metadata=self.metadata[mask] if self.metadata is not None else None,
+                                key_metadata=self.key_metadata, key_embedding=self.key_embedding)
+       
+            
     def filter_by_id(self, ids_list):
         if self.ids is not None:
             mask = np.isin(self.ids, ids_list)

@@ -10,6 +10,8 @@ import faiss
 import hdbscan
 import argparse
 import logging
+import random
+import networkx as nx
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from sklearn.metrics.cluster import adjusted_rand_score
 
@@ -84,6 +86,7 @@ class EmbeddingClustering:
         self.ids = None
         self.sequences = None
         self.cluster_assignments = None
+        self.graphs = {} 
 
         self._get_embeddings()
 
@@ -101,15 +104,14 @@ class EmbeddingClustering:
             self.ids = self.data.ids
             self.embedding_handler = self.data
 
+    # # Davies-Bouldin Index
+    # db_score = davies_bouldin_score(umap_embedding, cluster_labels)
+    # print(f'Davies-Bouldin Index: {db_score}')
 
-# # Davies-Bouldin Index
-# db_score = davies_bouldin_score(umap_embedding, cluster_labels)
-# print(f'Davies-Bouldin Index: {db_score}')
-
-# # Calinski-Harabasz Index
-# ch_score = calinski_harabasz_score(umap_embedding, cluster_labels)
-# print(f'Calinski-Harabasz Index: {ch_score}')
-#             self.embedding_handler = self.data
+    # # Calinski-Harabasz Index
+    # ch_score = calinski_harabasz_score(umap_embedding, cluster_labels)
+    # print(f'Calinski-Harabasz Index: {ch_score}')
+    #             self.embedding_handler = self.data
 
     # def prepare_directories_and_filenames(self):
     #     # Create the analysis output directory if it doesn't exist
@@ -137,10 +139,12 @@ class EmbeddingClustering:
         self.cluster_assignments = cluster_assignments.flatten()
         return self.cluster_assignments
     
+    
     def hdbscan_clustering(self, k=4):
         logging.info('Applying hdbscan...')
         subcluster_labels = np.full(self.embeddings.shape[0], -1)  # Initialize with -1 for outliers
-        subcluster_min_span_tree = {}
+        # subcluster_min_span_tree = {}
+        self.graphs = {}
         
         for supercluster in range(k):
             mask = self.cluster_assignments == supercluster
@@ -149,7 +153,27 @@ class EmbeddingClustering:
                 hdbscan_clusterer = hdbscan.HDBSCAN(min_cluster_size=5, gen_min_span_tree=True)
                 hdbscan_labels = hdbscan_clusterer.fit_predict(cluster_data)
                 subcluster_labels[mask] = hdbscan_labels + subcluster_labels.max() + 1  # Ensure unique labels
-                subcluster_min_span_tree[supercluster] = hdbscan_clusterer.minimum_spanning_tree_
+                # subcluster_min_span_tree = hdbscan_clusterer.minimum_spanning_tree_.to_networkx()
+                # condensed_tree = hdbscan_clusterer.condensed_tree_
+
+                # Create a NetworkX graph
+                G = nx.Graph()
+
+                # Create a NetworkX graph from the minimum spanning Tree
+                # for edge in subcluster_min_span_tree.edges(data=True):
+                #     G.add_edge(edge[0], edge[1], weight=edge[2]['weight'])
+                
+                # # Create a NetworkX graph from the Condensed Tree
+                # for edge in condensed_tree.edges(data=True):
+                #     G.add_edge(edge[0], edge[1], weight=edge[2]['weight'])
+                
+                # Add nodes and edges based on cluster labels
+                for i, label in enumerate(hdbscan_clusterer.labels_):
+                    G.add_node(i, cluster=label)
+                    for j, other_label in enumerate(hdbscan_clusterer.labels_):
+                        if i != j and label == other_label:
+                            G.add_edge(i, j)
+                self.graphs[supercluster] = G
 
             # Calculate DBCV score
             # dbcv_score = hdbscan.validity.validity_index(cluster_data, hdbscan_labels, 
@@ -157,10 +181,43 @@ class EmbeddingClustering:
             # logging.info(f"DBCV score: {dbcv_score}")
         # print(subcluster_min_span_tree)
         self.cluster_assignments = subcluster_labels
-        return self.cluster_assignments
+        return self.cluster_assignments, self.graphs
     
-    def update_embedding_handler(self, values, name='cluster'):
+    def calculate_graph_metrics(self):
+        """
+        Calculate graph metrics for the given NetworkX graph.
+
+        Returns:
+        - A dictionary containing the calculated graph metrics.
+        """
+        graph_metrics = {}
+
+        for supercluster, G in self.graphs.items():
+            # Calculate graph metrics
+            # degrees = dict(G.degree())
+            # closeness_centrality = nx.closeness_centrality(G, distance='weight')
+            average_degree = np.mean([deg for _, deg in G.degree()])
+            density = nx.density(G)
+            average_clustering_coefficient = nx.average_clustering(G)
+
+            graph_metrics[supercluster] = {
+                # 'degrees': degrees,
+                # 'closeness_centrality': closeness_centrality,
+                'average_degree': average_degree,
+                'density': density,
+                'average_clustering_coefficient': average_clustering_coefficient
+            }
+
+        return graph_metrics
+    
+    def update_embedding_handler(self, values, name='cluster', metrics=None):
+        print(f"Updating metadata with column: {name}")
         self.embedding_handler.update_metadata(values, column_name=name)
+        if metrics:
+            for metric_name, metric_values in metrics.items():
+                print(f"Updating metadata with metric: {metric_name}")
+                self.embedding_handler.update_metadata(metric_values, column_name = f'{name}_{metric_name}')
+        
         return self.embedding_handler
 
     def calculate_save_cluster_metrics(self):
@@ -170,9 +227,27 @@ class EmbeddingClustering:
         silhouette_score = self.calculate_silhouette_score()
         davies_bouldin_score = self.calculate_davies_bouldin_score()
         calinski_harabasz_score = self.calculate_calinski_harabasz_score()
-        self.update_embedding_handler(silhouette_score, name='silhouette_score')
-        self.update_embedding_handler(davies_bouldin_score, name='davies_bouldin_score')
-        self.update_embedding_handler(calinski_harabasz_score, name='calinski_harabasz_score')
+        
+        graph_metrics = self.calculate_graph_metrics()
+        flattened_graph_metrics = {}
+        for supercluster, metrics in graph_metrics.items():
+            for metric_name, metric_value in metrics.items():
+                if metric_name in ['average_degree' ,'density','average_clustering_coefficient']:
+                    flattened_graph_metrics[f'graph_{supercluster}_{metric_name}'] = [metric_value] * len(self.embeddings)
+                else: 
+                    flattened_graph_metrics[f'graph_{supercluster}_{metric_name}'] = [metric_value.get(str(node_id), 0) for node_id in self.ids]   
+                    print(f"Flattened Metric Values: {flattened_graph_metrics[f'graph_{supercluster}_{metric_name}']}")
+                    #TODO check if this is correct
+        metrics = {
+            'silhouette_score': silhouette_score,
+            'davies_bouldin_score': davies_bouldin_score,
+            'calinski_harabasz_score': calinski_harabasz_score,
+            **flattened_graph_metrics
+        }
+        
+        # Update metadata with all metrics
+        self.update_embedding_handler(values=self.cluster_assignments, name='cluster_metrics', metrics=metrics)
+        
         return self.embedding_handler
 
     # def save_clusters_to_csv(self):
@@ -292,16 +367,23 @@ class EmbeddingClustering:
         Calculate and log the density-based cluster evaluation metrics for the current clustering.
         """
         
+    def downsampling(self, sample_size):
+        self.embedding_handler = self.embedding_handler.downsample_embeddings(sample_size)
+        self.embeddings = self.embedding_handler.embeddings
+        self.sequences = self.embedding_handler.sequences
+        self.ids = self.embedding_handler.ids
  
-    def run(self, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss', apply_hdbscan=True):
+    def run(self, sample_size=None, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss', apply_hdbscan=True):
         # self.prepare_directories_and_filenames()
         # self.read_embeddings_files()
+        if sample_size:
+            self.downsampling(sample_size)
         if optimal_cluster:
             k = self.find_optimal_clusters(clustering_method=clustering_method)
         clusters = self.faiss_clustering(k=k, niter=n_iter)
         self.update_embedding_handler(values=clusters, name='cluster')
         if apply_hdbscan:
-            clusters = self.hdbscan_clustering(k=k)
+            clusters, graphs = self.hdbscan_clustering(k=k)
             self.update_embedding_handler(values=clusters, name='cluster_hdbscan')
         self.calculate_save_cluster_metrics()
         
