@@ -190,7 +190,7 @@ class UMAPGenerator():
         # Plotting for 2 dimensions UMAP
         if num_dimensions == 2:
             if ax is None:
-                fig, ax = plt.subplots(figsize=(10, 8))
+                fig, ax = plt.subplots(figsize=(6, 5))
 
              # Get additional arguments for sns.scatterplot and ax.legend
             scatter_kwargs = filter_kwargs_for_function(sns.scatterplot, kwargs)
@@ -203,6 +203,7 @@ class UMAPGenerator():
                             ax=ax,
                             s=s,
                             alpha=alpha,
+                            edgecolor = 'black',
                             **scatter_kwargs)
             ax.set_xlabel('UMAP 1')
             ax.set_ylabel('UMAP 2')
