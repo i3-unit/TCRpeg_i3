@@ -154,7 +154,7 @@ class UMAPGenerator():
             except:
                 logging.warning("Metadata not merged with UMAP data.")
 
-    def plot_umap(self, ax=None, hue=None, palette=None, alpha=1.0, show=True,  output_file=None, **kwargs):
+    def plot_umap(self, ax=None, hue=None, palette=None, alpha=1.0, show=True,  output_file=None, scatter_kwargs=None, legend_kwargs=None, **kwargs):
         num_dimensions = self.embeddings_reduced.shape[1]
 
         # Set default values or extract from kwargs
@@ -193,8 +193,8 @@ class UMAPGenerator():
                 fig, ax = plt.subplots(figsize=(10, 8))
 
              # Get additional arguments for sns.scatterplot and ax.legend
-            scatter_kwargs = filter_kwargs_for_function(sns.scatterplot, kwargs)
-            legend_kwargs = filter_kwargs_for_function(ax.legend, kwargs)
+            # scatter_kwargs = filter_kwargs_for_function(sns.scatterplot, kwargs)
+            # legend_kwargs = filter_kwargs_for_function(ax.legend, kwargs)
 
             sns.scatterplot(x=self.umap_data['UMAP_1'],
                             y=self.umap_data['UMAP_2'],
