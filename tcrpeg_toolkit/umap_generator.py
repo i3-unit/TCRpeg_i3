@@ -154,13 +154,22 @@ class UMAPGenerator():
             except:
                 logging.warning("Metadata not merged with UMAP data.")
 
-    def plot_umap(self, ax=None, hue=None, palette=None, alpha=1.0, show=True,  output_file=None, scatter_kwargs={}, legend_kwargs={}, **kwargs):
+    def plot_umap(self, ax=None, hue=None, palette=None, style=None, title=None, show=True, output_file=None, scatter_kwargs={}, legend_kwargs={}, **kwargs):
         num_dimensions = self.embeddings_reduced.shape[1]
 
         # Set default values or extract from kwargs
         s = kwargs.pop('s', 20)  
         # Set marker size and remove it from kwargs, default is 20 if s is not provided in kwargs 
-        figsize = kwargs.pop('figsize', (8,8))
+        figsize = kwargs.pop('figsize', (6,6))
+        edgecolor = kwargs.pop('edgecolor', 'white')
+        alpha = kwargs.pop('alpha', 1.0)
+
+        # Get legend kwargs 
+        legend_loc = legend_kwargs.pop('loc', 'best')
+        legend_pos = legend_kwargs.pop('bbox_to_anchor', (0.5, 1.3))
+        legend_frame = legend_kwargs.pop('frameon', False)
+        legend_size = legend_kwargs.pop('fontsize', 12)
+        legend_borderpad = legend_kwargs.pop('borderpad', 1)
 
         # Determine the color mapping based on the palette type
         if palette is not None and isinstance(palette, str):
@@ -201,13 +210,15 @@ class UMAPGenerator():
                             y=self.umap_data['UMAP_2'],
                             hue=self.umap_data[f"{hue}_categorical"] if hue is not None else None,
                             palette=None if hue is None else (palette if palette is not None else 'husl'),
+                            style=self.umap_data[style] if style is not None else None,
                             ax=ax,
                             s=s,
                             alpha=alpha,
-                            edgecolor = 'black',
+                            edgecolor = edgecolor,
                             **scatter_kwargs)
             ax.set_xlabel('UMAP 1')
             ax.set_ylabel('UMAP 2')
+            ax.set_title(f'{title}') if title is not None else None
 
             if hue is not None:
                 handles, labels = ax.get_legend_handles_labels()
@@ -231,13 +242,13 @@ class UMAPGenerator():
                 num_items = len(handles)
                 ncol = min(4, max(1, num_items // 3))
 
-                ax.legend(handles=handles, labels=labels, title=hue,
-                          bbox_to_anchor=(0.5, 1.3),
-                          loc='best',
+                ax.legend(handles=handles, labels=labels,
+                          bbox_to_anchor=legend_pos,
+                          loc=legend_loc,
                           ncol=ncol, 
-                          frameon=False,
-                          borderpad=1,
-                          fontsize=12,
+                          frameon=legend_frame,
+                          borderpad=legend_borderpad,
+                          fontsize=legend_size,
                           **legend_kwargs)
 
         # Plotting for 3 dimensions UMAP
