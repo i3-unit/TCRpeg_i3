@@ -154,12 +154,13 @@ class UMAPGenerator():
             except:
                 logging.warning("Metadata not merged with UMAP data.")
 
-    def plot_umap(self, ax=None, hue=None, palette=None, alpha=1.0, show=True,  output_file=None, scatter_kwargs=None, legend_kwargs=None, **kwargs):
+    def plot_umap(self, ax=None, hue=None, palette=None, alpha=1.0, show=True,  output_file=None, scatter_kwargs={}, legend_kwargs={}, **kwargs):
         num_dimensions = self.embeddings_reduced.shape[1]
 
         # Set default values or extract from kwargs
         s = kwargs.pop('s', 20)  
         # Set marker size and remove it from kwargs, default is 20 if s is not provided in kwargs 
+        figsize = kwargs.pop('figsize', (8,8))
 
         # Determine the color mapping based on the palette type
         if palette is not None and isinstance(palette, str):
@@ -190,7 +191,7 @@ class UMAPGenerator():
         # Plotting for 2 dimensions UMAP
         if num_dimensions == 2:
             if ax is None:
-                fig, ax = plt.subplots(figsize=(6, 5))
+                fig, ax = plt.subplots(figsize=figsize)
 
              # Get additional arguments for sns.scatterplot and ax.legend
             # scatter_kwargs = filter_kwargs_for_function(sns.scatterplot, kwargs)
