@@ -250,6 +250,17 @@ class EmbeddingClustering:
         
         return self.embedding_handler
 
+    def define_cluster_group(self):
+        if self.cluster_assignments is None:
+            logging.error("No cluster assignments available. Cannot define cluster groups.")
+            return
+        
+        # Define cluster groups based on outlier, clustered
+        self.cluster_group = ['outlier' if x==-1 else 'clustered' for x in self.cluster_assignments]
+
+        # Update embedding handler with cluster group
+        self.update_embedding_handler(values=self.cluster_group, name='cluster_group')
+
     # def save_clusters_to_csv(self):
     #     output_file = os.path.join(self.analysis_dir, f"{self.input_name}_clusters.csv")
     #     df = pd.DataFrame({
@@ -366,6 +377,7 @@ class EmbeddingClustering:
         """
         Calculate and log the density-based cluster evaluation metrics for the current clustering.
         """
+        pass
         
     def downsampling(self, sample_size):
         self.embedding_handler = self.embedding_handler.downsample_embeddings(sample_size)
@@ -374,8 +386,6 @@ class EmbeddingClustering:
         self.ids = self.embedding_handler.ids
  
     def run(self, sample_size=None, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss', apply_hdbscan=True):
-        # self.prepare_directories_and_filenames()
-        # self.read_embeddings_files()
         if sample_size:
             self.downsampling(sample_size)
         if optimal_cluster:
@@ -386,6 +396,7 @@ class EmbeddingClustering:
             clusters, graphs = self.hdbscan_clustering(k=k)
             self.update_embedding_handler(values=clusters, name='cluster_hdbscan')
         self.calculate_save_cluster_metrics()
+        self.define_cluster_group()
         
         return self.embedding_handler
    
