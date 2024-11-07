@@ -518,6 +518,7 @@ class DistributionHeatmapPlotter:
         # From kwargs 
         linewidths = kwargs.pop('linewidths', 0)
         method = kwargs.pop('method', 'ward')
+        figsize = kwargs.pop('figsize', (6,6))
         
         if self.metadata is None:
             g = sns.clustermap(self.distance_matrix_annotated, 
@@ -529,7 +530,7 @@ class DistributionHeatmapPlotter:
                         cbar_pos=(1, .6, .03, .2),
                         linewidths=linewidths,
                         method=method,
-                        figsize=(6, 6))
+                        figsize=figsize)
     
         else:
             g = sns.clustermap(self.distance_matrix_annotated, 
@@ -545,7 +546,7 @@ class DistributionHeatmapPlotter:
                         xticklabels=False,  # Removes column names
                         yticklabels=False,
                         method=method,
-                        figsize=(6, 6))
+                        figsize=figsize)
             # Add black lines between the heatmap and the row/col colors
             if box_color is not None:
                 for ax in [g.ax_col_colors, g.ax_row_colors]:
