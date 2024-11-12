@@ -230,7 +230,8 @@ if __name__ == "__main__":
         args.device = 'cpu'
 
     model_infer = TCRpegModel(input_file=args.input, output_dir=args.output, device=args.device)
-    model_infer.run(test_size=args.test_size, word2vec_epochs=args.word2vec_epochs,
+    model_infer.run(seq_col=args.seq_col, id_col=args.id, count_col=args.count_col,
+                    test_size=args.test_size, word2vec_epochs=args.word2vec_epochs,
                     word2vec_batch_size=args.word2vec_batch_size, word2vec_learning_rate=args.word2vec_learning_rate,
                     hidden_size=args.hidden_size, num_layers=args.num_layers, epochs=args.epochs,
                     batch_size=args.batch_size, learning_rate=args.learning_rate,
