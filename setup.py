@@ -20,8 +20,11 @@ setup(name='tcrpeg',
             'Natural Language :: English',
             'Programming Language :: Python :: 3',
             ],
-      packages=find_packages(),
+      # packages=find_packages(),
+      packages=find_packages(include=['tcrpeg', 'tcrpeg.*', 'tcrpeg_toolkit', 'tcrpeg_toolkit.*']),
       install_requires=['numpy','torch','matplotlib','tqdm','pandas','scikit-learn','Scipy'],
       data_files = data_files_to_include,
       include_package_data=True,
       zip_safe=False)
+
+# Need to run pip install -e .
