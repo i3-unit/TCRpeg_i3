@@ -14,6 +14,8 @@ import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
 from matplotlib.colors import ListedColormap
 
+#todo change it to from tcrpeg_toolkit.embedding_visualization import EmbeddingVisualization
+
 # Suppress UMAP warnings
 warnings.filterwarnings("ignore", message="n_jobs value -1 overridden to 1 by setting random_state. Use no seed for parallelism.")
 
