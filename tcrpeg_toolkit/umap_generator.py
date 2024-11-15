@@ -14,6 +14,7 @@ import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
 from matplotlib.colors import ListedColormap
 
+#improve one class for handler, cluster and plot
 #todo change it to from tcrpeg_toolkit.embedding_visualization import EmbeddingVisualization
 
 # Suppress UMAP warnings
@@ -26,10 +27,13 @@ from tcrpeg_toolkit.utils import load_data, filter_kwargs_for_function
 from tcrpeg_toolkit.embedding_handler import EmbeddingHandler, Embedding
 
 class UMAPGenerator():
-    def __init__(self, data, metadata=None, key_metadata='id'):
+    def __init__(self, data, metadata=None, key_embedding='id', key_metadata='id'):
         self.data = data
         self.metadata = load_data(metadata, message=False)
+        self.key_embedding = key_embedding
         self.key_metadata = key_metadata
+        
+        self.umap_data = None
         self.embeddings = None
         self.embeddings_reduced = None
         self.ids = None
@@ -42,8 +46,9 @@ class UMAPGenerator():
             self.embedding_handler= EmbeddingHandler(self.data)
             self.embeddings = self.embedding_handler.get_embeddings()
             self.ids = self.embedding_handler.get_ids()
+            self.sequences = self.embedding_handler.get_sequences()
         else:
-            print("Loaded Embedding Object")
+            logging.info("Loaded Embedding Object")
             self.embeddings = self.data.embeddings
             self.ids = self.data.ids
             self.sequences = self.data.sequences
@@ -53,6 +58,7 @@ class UMAPGenerator():
                 self.metadata = None
                 logging.info("Metadata attribute is missing from data object.")
 
+    #improve return embedding handler for run and compute (should return an EmbeddingHandler object containing the transformed embeddings in lower dimensional space along with the preserved metadata and sequences.)
     def run(self, **kwargs):
         self.compute_umap(**kwargs)
         self.merge_metadata()
@@ -147,14 +153,20 @@ class UMAPGenerator():
 
             if self.umap_data['id'].isna().sum() > 0:
                 print("Warning: Mismatch in id between UMAP data and metadata.")
+
+        if self.sequences is not None:
+            self.umap_data['sequence'] = self.sequences
         
-        if self.metadata is not None and self.key_metadata is not None and self.ids is not None:
+        if self.metadata is not None and self.key_metadata is not None and self.ids is not None and self.sequences is not None:
             try:
                 self.umap_data['id'] = self.umap_data['id'].astype('str')
                 self.metadata[self.key_metadata] = self.metadata[self.key_metadata].astype('str')
-                self.umap_data = self.umap_data.merge(self.metadata, left_on='id', right_on=self.key_metadata, how='left')
+                # Drop duplicates to avoid multiple merges
+                self.umap_data = self.umap_data.merge(self.metadata, left_on=self.key_embedding, right_on=self.key_metadata, how='left').drop_duplicates().reset_index(drop=False)
             except:
                 logging.warning("Metadata not merged with UMAP data.")
+
+#improve change the name to plot
 
     def plot_umap(self, ax=None, hue=None, palette=None, style=None, title=None, show=True, output_file=None, scatter_kwargs={}, legend_kwargs={}, **kwargs):
         num_dimensions = self.embeddings_reduced.shape[1]
