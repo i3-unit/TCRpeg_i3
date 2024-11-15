@@ -70,7 +70,7 @@ class OptimalClusterFinder:
         logging.info(f"The optimal number of clusters k based on the elbow method is {optimal_k}.")
         
         if optimal_k is None:
-            logging("Warning: The elbow point could not be found. Returning the maximum number of clusters.")
+            logging.warning("The elbow point could not be found. Returning the maximum number of clusters.")
             optimal_k = max_k
         
         return optimal_k
@@ -127,6 +127,7 @@ class EmbeddingClustering:
         return optimal_cluster_finder.find_optimal_clusters(clustering_method=clustering_method)
                                         
     def faiss_clustering(self,  k=4, niter=10):
+        logging.info('Applying faiss clustering...')
         #   Set up FAISS clustering
         d = self.embeddings.shape[1]  # dimensionality of vectors
 
@@ -142,6 +143,7 @@ class EmbeddingClustering:
     
     def hdbscan_clustering(self, k=4):
         logging.info('Applying hdbscan...')
+        
         subcluster_labels = np.full(self.embeddings.shape[0], -1)  # Initialize with -1 for outliers
         # subcluster_min_span_tree = {}
         self.graphs = {}
@@ -190,6 +192,9 @@ class EmbeddingClustering:
         Returns:
         - A dictionary containing the calculated graph metrics.
         """
+
+        logging.info('Calculating graph metrics...')
+        
         graph_metrics = {}
 
         for supercluster, G in self.graphs.items():
@@ -211,39 +216,46 @@ class EmbeddingClustering:
         return graph_metrics
     
     def update_embedding_handler(self, values, name='cluster', metrics=None):
-        print(f"Updating metadata with column: {name}")
+        logging.info(f"Updating metadata with column: {name}")
         self.embedding_handler.update_metadata(values, column_name=name)
         if metrics:
             for metric_name, metric_values in metrics.items():
-                print(f"Updating metadata with metric: {metric_name}")
+                logging.info(f"Updating metadata with metric: {metric_name}")
                 self.embedding_handler.update_metadata(metric_values, column_name = f'{name}_{metric_name}')
         
         return self.embedding_handler
 
-    def calculate_save_cluster_metrics(self):
+#improve add option to save embedding handler
+
+    def calculate_save_cluster_metrics(self, calculate_graph_metrics=False):
         if self.cluster_assignments is None:
             logging.error("No cluster assignments available. Cannot calculate cluster metrics.")
             return
         silhouette_score = self.calculate_silhouette_score()
         davies_bouldin_score = self.calculate_davies_bouldin_score()
         calinski_harabasz_score = self.calculate_calinski_harabasz_score()
-        
-        graph_metrics = self.calculate_graph_metrics()
-        flattened_graph_metrics = {}
-        for supercluster, metrics in graph_metrics.items():
-            for metric_name, metric_value in metrics.items():
-                if metric_name in ['average_degree' ,'density','average_clustering_coefficient']:
-                    flattened_graph_metrics[f'graph_{supercluster}_{metric_name}'] = [metric_value] * len(self.embeddings)
-                else: 
-                    flattened_graph_metrics[f'graph_{supercluster}_{metric_name}'] = [metric_value.get(str(node_id), 0) for node_id in self.ids]   
-                    print(f"Flattened Metric Values: {flattened_graph_metrics[f'graph_{supercluster}_{metric_name}']}")
-                    #TODO check if this is correct
+
         metrics = {
-            'silhouette_score': silhouette_score,
-            'davies_bouldin_score': davies_bouldin_score,
-            'calinski_harabasz_score': calinski_harabasz_score,
-            **flattened_graph_metrics
-        }
+                'silhouette_score': silhouette_score,
+                'davies_bouldin_score': davies_bouldin_score,
+                'calinski_harabasz_score': calinski_harabasz_score,
+            }
+
+        #fix seperate graph metrics from the first three
+        if calculate_graph_metrics:
+            logging.info("Calculating graph metrics...")
+            graph_metrics = self.calculate_graph_metrics()
+            flattened_graph_metrics = {}
+            for supercluster, metrics in graph_metrics.items():
+                for metric_name, metric_value in metrics.items():
+                    if metric_name in ['average_degree' ,'density','average_clustering_coefficient']:
+                        flattened_graph_metrics[f'graph_{supercluster}_{metric_name}'] = [metric_value] * len(self.embeddings)
+                    else: 
+                        flattened_graph_metrics[f'graph_{supercluster}_{metric_name}'] = [metric_value.get(str(node_id), 0) for node_id in self.ids]   
+                        logging.info(f"Flattened Metric Values: {flattened_graph_metrics[f'graph_{supercluster}_{metric_name}']}")
+                        #TODO check if this is correct
+
+            metrics.update(flattened_graph_metrics)
         
         # Update metadata with all metrics
         self.update_embedding_handler(values=self.cluster_assignments, name='cluster_metrics', metrics=metrics)
@@ -251,6 +263,7 @@ class EmbeddingClustering:
         return self.embedding_handler
 
     def define_cluster_group(self):
+        logging.info("Defining cluster groups...")
         if self.cluster_assignments is None:
             logging.error("No cluster assignments available. Cannot define cluster groups.")
             return
@@ -315,6 +328,10 @@ class EmbeddingClustering:
         # else:
         #     logging.error("Clustering method is not supported. Should be one of 'kmeans' or 'hdbscan'. Cannot calculate cluster metrics.")
         #     return
+
+        if len(np.unique(self.cluster_assignments)) == 1:
+            logging.warning("Only one cluster found. Silhouette score cannot be calculated.")
+            return None
             
         score = silhouette_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Silhouette score: {score}")
@@ -342,6 +359,10 @@ class EmbeddingClustering:
         # else:
         #     logging.error("Clustering method is not supported. Should be one of 'kmeans' or 'hdbscan'. Cannot calculate cluster metrics.")
         #     return
+
+        if len(np.unique(self.cluster_assignments)) == 1:
+            logging.warning("Only one cluster found. Davies-Bouldin score cannot be calculated.")
+            return None
         
         score = davies_bouldin_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Davies-Bouldin score: {score}")
@@ -368,6 +389,10 @@ class EmbeddingClustering:
         # else:
         #     logging.error("Clustering method is not supported. Should be one of 'kmeans' or 'hdbscan'. Cannot calculate cluster metrics.")
         #     return
+
+        if len(np.unique(self.cluster_assignments)) == 1:
+            logging.warning("Only one cluster found. Calinski-Harabasz score cannot be calculated.")
+            return None
         
         score = calinski_harabasz_score(self.embeddings, self.cluster_assignments)
         logging.info(f"Calinski-Harabasz score: {score}")
@@ -380,12 +405,13 @@ class EmbeddingClustering:
         pass
         
     def downsampling(self, sample_size):
+        logging.info(f"Downsampling to {sample_size} sequences")
         self.embedding_handler = self.embedding_handler.downsample_embeddings(sample_size)
         self.embeddings = self.embedding_handler.embeddings
         self.sequences = self.embedding_handler.sequences
         self.ids = self.embedding_handler.ids
  
-    def run(self, sample_size=None, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss', apply_hdbscan=True):
+    def run(self, sample_size=None, k=4, n_iter=10, optimal_cluster=False, clustering_method='faiss', apply_hdbscan=True, calculate_metrics=True, calculate_graph_metrics=False):
         if sample_size:
             self.downsampling(sample_size)
         if optimal_cluster:
@@ -395,7 +421,8 @@ class EmbeddingClustering:
         if apply_hdbscan:
             clusters, graphs = self.hdbscan_clustering(k=k)
             self.update_embedding_handler(values=clusters, name='cluster_hdbscan')
-        self.calculate_save_cluster_metrics()
+        if calculate_metrics:
+            self.calculate_save_cluster_metrics(calculate_graph_metrics=calculate_graph_metrics)
         self.define_cluster_group()
         
         return self.embedding_handler
