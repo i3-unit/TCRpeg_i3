@@ -1,6 +1,7 @@
 import os
 import glob
 import logging
+import warnings
 from dataclasses import dataclass, field
 from typing import List, Optional
 
@@ -12,6 +13,11 @@ from scipy.cluster import hierarchy
 import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
+from scipy.cluster.hierarchy import ClusterWarning
+
+# Add this before plotting
+warnings.filterwarnings("ignore", category=ClusterWarning)
+
 
 from tcrpeg_toolkit.utils import load_data, filter_kwargs_for_function
 
@@ -501,7 +507,8 @@ class DistributionHeatmapPlotter:
 
         return self.metadata_multi_idx_colors
 
-    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None, box_color='black', legend_edgecolor='black', **kwargs):
+#improve simplify to plot
+    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None, box_color='black', legend_edgecolor='black', legend_kwargs={}, **kwargs):
         v_min = self.distance_matrix_annotated.min().min()
         v_max = self.distance_matrix_annotated.max().max()
 
@@ -519,6 +526,16 @@ class DistributionHeatmapPlotter:
         linewidths = kwargs.pop('linewidths', 0)
         method = kwargs.pop('method', 'ward')
         figsize = kwargs.pop('figsize', (6,6))
+
+        # From legend_kwargs
+        legend_location = legend_kwargs.pop('loc', 'lower left')
+        legend_fontsize = legend_kwargs.pop('fontsize', 10)
+        legend_bbox_to_anchor = legend_kwargs.pop('bbox_to_anchor', (1.2, 0))
+        legend_borderpad = legend_kwargs.pop('borderpad', 0.5)
+        legend_labelspacing = legend_kwargs.pop('labelspacing', 0.5)
+        legend_handlelength = legend_kwargs.pop('handlelength', 1.5)
+        legend_orientation = legend_kwargs.pop('orientation', 'vertical')
+        legend_spacing = legend_kwargs.pop('spacing', 0.2)
         
         if self.metadata is None:
             g = sns.clustermap(self.distance_matrix_annotated, 
@@ -530,7 +547,8 @@ class DistributionHeatmapPlotter:
                         cbar_pos=(1, .6, .03, .2),
                         linewidths=linewidths,
                         method=method,
-                        figsize=figsize)
+                        figsize=figsize,
+                        **kwargs)
     
         else:
             g = sns.clustermap(self.distance_matrix_annotated, 
@@ -546,8 +564,20 @@ class DistributionHeatmapPlotter:
                         xticklabels=False,  # Removes column names
                         yticklabels=False,
                         method=method,
-                        figsize=figsize)
-            # Add black lines between the heatmap and the row/col colors
+                        figsize=figsize,
+                        **kwargs)
+
+            # Remove axis labels
+            g.ax_heatmap.set_xlabel('')
+            g.ax_heatmap.set_ylabel('')
+
+            # Remove ticks from color bars
+            if g.ax_row_colors is not None:
+                g.ax_row_colors.tick_params(length=0)
+            if g.ax_col_colors is not None:
+                g.ax_col_colors.tick_params(length=0)
+
+            # Add lines between the heatmap and the row/col colors
             if box_color is not None:
                 for ax in [g.ax_col_colors, g.ax_row_colors]:
                     if ax is not None:  # Check if the axis exists
@@ -555,17 +585,52 @@ class DistributionHeatmapPlotter:
                             spine.set_visible(True) 
                             spine.set_edgecolor(box_color)
                             spine.set_linewidth(1)
-                
-            # add legends
-            legend_elements = []
-            for level, palette in  self.color_palettes.items():
+
+            # Create and store all legends
+            
+            for i, (level, palette) in enumerate(self.color_palettes.items()):
+                legend_elements = []
                 lut = palette['lut']
+                
                 for value, color in lut.items():
-                    legend_elements.append(Patch(facecolor=color, edgecolor=legend_edgecolor, label=f"{level}: {value}"))
+                    legend_elements.append(Patch(facecolor=color, edgecolor=legend_edgecolor, label=f"{value}"))
+
+                if legend_orientation.lower() == 'vertical':
+                    legend_anchor = (legend_bbox_to_anchor[0], legend_bbox_to_anchor[1] + (i * legend_spacing))
+                elif legend_orientation.lower() == 'horizontal':
+                    legend_anchor = (legend_bbox_to_anchor[0] + i * legend_spacing, legend_bbox_to_anchor[1])
+                else:
+                    logging.warning(f"Invalid legend position: {legend_orientation}. Using 'vertical' as default.")
+                    legend_anchor = (legend_bbox_to_anchor[0], legend_bbox_to_anchor[1] + (i * legend_spacing))
+
+                # Position legends horizontally with dynamic spacing
+                g.fig.legends.append(
+                    g.fig.legend(handles=legend_elements, 
+                                title=level,
+                                loc=legend_location,
+                                bbox_to_anchor=legend_anchor,
+                                # bbox_to_anchor=(1, 1.15 + i*legend_spacing),
+                                # bbox_to_anchor=(1.5 + i*legend_spacing, 0.5),  # Horizontal positioning
+                                fontsize=legend_fontsize)
+                                # borderpad=legend_borderpad,
+                                # labelspacing=legend_labelspacing,
+                                # handlelength=legend_handlelength)
+                )
+
+
+            # legend_elements = []
+            # for level, palette in  self.color_palettes.items():
+            #     lut = palette['lut']
+            #     for value, color in lut.items():
+            #         legend_elements.append(Patch(facecolor=color, edgecolor=legend_edgecolor, label=f"{level}: {value}"))
              
-            # Add the legend to the heatmap
-            legend = g.ax_heatmap.legend(handles=legend_elements, loc='lower right', bbox_to_anchor=(1.25, .75), fontsize='small')
-            legend.set_bbox_to_anchor((1.2, 0.25, 0.3, 0.5), transform=g.ax_heatmap.transAxes)
+            # # Add the legend to the heatmap
+            # legend = g.ax_heatmap.legend(handles=legend_elements, 
+            #                              loc=legend_location,
+            #                              bbox_to_anchor=legend_bbox_to_anchor,
+            #                              fontsize=legend_fontsize,
+            #                              **legend_kwargs)
+            # legend.set_bbox_to_anchor((1.2, 0.25, 0.3, 0.5), transform=g.ax_heatmap.transAxes)
             
         if save is True:
             if output_dir is None:
@@ -581,7 +646,7 @@ class DistributionHeatmapPlotter:
         else:
             return g
     
-    def run(self, palette_mapping=None, filter_existing_values=None, **kwargs):
+    def run(self, palette_mapping=None, filter_existing_values=None, legend_kwargs={}, **kwargs):
         self.process_metadata()
         self.create_multi_index(columns=kwargs.get('columns'))
         self.annotate_distance_matrix()
@@ -590,7 +655,7 @@ class DistributionHeatmapPlotter:
         # Check if row_colors or col_colors is given as argument default to metadata multi index colors
         row_colors = kwargs.pop('row_colors', self.metadata_multi_idx_colors )
         col_colors = kwargs.pop('col_colors', self.metadata_multi_idx_colors)
-        plot = self.plot_heatmap(row_colors=row_colors, col_colors=col_colors, **kwargs)
+        plot = self.plot_heatmap(row_colors=row_colors, col_colors=col_colors, legend_kwargs=legend_kwargs, **kwargs)
 
         return plot
 
