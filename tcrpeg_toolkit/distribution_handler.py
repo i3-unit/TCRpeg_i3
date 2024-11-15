@@ -508,7 +508,7 @@ class DistributionHeatmapPlotter:
         return self.metadata_multi_idx_colors
 
 #improve simplify to plot
-    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None, box_color='black', legend_edgecolor='black', legend_kwargs={}, **kwargs):
+    def plot_heatmap(self, row_colors=None, col_colors=None, normalize=False, save=False, output_dir=None, columns=None, box_color='black', legend_edgecolor='black', show=True, show_legend=True, legend_kwargs={}, **kwargs):
         v_min = self.distance_matrix_annotated.min().min()
         v_max = self.distance_matrix_annotated.max().max()
 
@@ -587,36 +587,35 @@ class DistributionHeatmapPlotter:
                             spine.set_linewidth(1)
 
             # Create and store all legends
-            
-            for i, (level, palette) in enumerate(self.color_palettes.items()):
-                legend_elements = []
-                lut = palette['lut']
-                
-                for value, color in lut.items():
-                    legend_elements.append(Patch(facecolor=color, edgecolor=legend_edgecolor, label=f"{value}"))
+            if show_legend is True:
+                for i, (level, palette) in enumerate(self.color_palettes.items()):
+                    legend_elements = []
+                    lut = palette['lut']
+                    
+                    for value, color in lut.items():
+                        legend_elements.append(Patch(facecolor=color, edgecolor=legend_edgecolor, label=f"{value}"))
 
-                if legend_orientation.lower() == 'vertical':
-                    legend_anchor = (legend_bbox_to_anchor[0], legend_bbox_to_anchor[1] + (i * legend_spacing))
-                elif legend_orientation.lower() == 'horizontal':
-                    legend_anchor = (legend_bbox_to_anchor[0] + i * legend_spacing, legend_bbox_to_anchor[1])
-                else:
-                    logging.warning(f"Invalid legend position: {legend_orientation}. Using 'vertical' as default.")
-                    legend_anchor = (legend_bbox_to_anchor[0], legend_bbox_to_anchor[1] + (i * legend_spacing))
+                    if legend_orientation.lower() == 'vertical':
+                        legend_anchor = (legend_bbox_to_anchor[0], legend_bbox_to_anchor[1] + (i * legend_spacing))
+                    elif legend_orientation.lower() == 'horizontal':
+                        legend_anchor = (legend_bbox_to_anchor[0] + i * legend_spacing, legend_bbox_to_anchor[1])
+                    else:
+                        logging.warning(f"Invalid legend position: {legend_orientation}. Using 'vertical' as default.")
+                        legend_anchor = (legend_bbox_to_anchor[0], legend_bbox_to_anchor[1] + (i * legend_spacing))
 
-                # Position legends horizontally with dynamic spacing
-                g.fig.legends.append(
-                    g.fig.legend(handles=legend_elements, 
-                                title=level,
-                                loc=legend_location,
-                                bbox_to_anchor=legend_anchor,
-                                # bbox_to_anchor=(1, 1.15 + i*legend_spacing),
-                                # bbox_to_anchor=(1.5 + i*legend_spacing, 0.5),  # Horizontal positioning
-                                fontsize=legend_fontsize)
-                                # borderpad=legend_borderpad,
-                                # labelspacing=legend_labelspacing,
-                                # handlelength=legend_handlelength)
-                )
-
+                    # Position legends horizontally with dynamic spacing
+                    g.fig.legends.append(
+                        g.fig.legend(handles=legend_elements, 
+                                    title=level,
+                                    loc=legend_location,
+                                    bbox_to_anchor=legend_anchor,
+                                    # bbox_to_anchor=(1, 1.15 + i*legend_spacing),
+                                    # bbox_to_anchor=(1.5 + i*legend_spacing, 0.5),  # Horizontal positioning
+                                    fontsize=legend_fontsize)
+                                    # borderpad=legend_borderpad,
+                                    # labelspacing=legend_labelspacing,
+                                    # handlelength=legend_handlelength)
+                    )
 
             # legend_elements = []
             # for level, palette in  self.color_palettes.items():
@@ -644,6 +643,8 @@ class DistributionHeatmapPlotter:
                 logging.info("Saving plot")
                 g.savefig(f'{output_dir}/{self.distance_metric}_heatmap_pinfer.pdf', format='pdf', bbox_inches='tight')
         else:
+            if show is False:
+                plt.close()
             return g
     
     def run(self, palette_mapping=None, filter_existing_values=None, legend_kwargs={}, **kwargs):
