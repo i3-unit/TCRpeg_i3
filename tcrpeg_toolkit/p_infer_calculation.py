@@ -35,9 +35,13 @@ def configure_logging(log_file):
 
 np.random.seed(222)
 
+#improve word2vec path as option
+#improve return without output dir
+
+
 #todo check if better to separate model and p_infer in two classes
 class TCRpegModel:
-    def __init__(self, input_file, output_dir, device='cpu'):
+    def __init__(self, input_file, output_dir, device='cpu', name=None):
         self.input_file = input_file
         self.output_dir = output_dir
         self.device = device
@@ -48,6 +52,7 @@ class TCRpegModel:
         self.sequences_train = None
         self.sequences_test = None
         self.model = None
+        self.input_name = name
 
     def prepare_directories_and_filenames(self):
         # Create the output directory if it doesn't exist
@@ -67,9 +72,10 @@ class TCRpegModel:
         os.makedirs(f"{self.embeddings_dir}/raw", exist_ok=True)
         os.makedirs(f"{self.embeddings_dir}/structured", exist_ok=True)
         os.makedirs(self.models_dir, exist_ok=True)
-        
-        # Extract the input file name without extension
-        self.input_name = os.path.splitext(os.path.basename(self.input_file))[0]
+
+        if self.input_name is None:
+            # Extract the input file name without extension
+            self.input_name = os.path.splitext(os.path.basename(self.input_file))[0]
         
     def load_and_preprocess_data(self, seq_col='sequence', id_col='id', count_col='count'):
         self.data = load_data(self.input_file)
@@ -114,7 +120,9 @@ class TCRpegModel:
     def train_model(self, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
         logging.info("Training TCRpeg model...")
         self.model = TCRpeg(hidden_size=hidden_size, num_layers=num_layers, load_data=True, max_length=50,
-                            embedding_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt',
+                            # embedding_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt',
+                            embedding_path='tcrpeg/data/embedding_32.txt',
+                            #fix testing with the provided word2vec
                             path_train=self.sequences_train, device=self.device)
         
         self.model.create_model()
