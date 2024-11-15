@@ -1,86 +1,86 @@
-# Snakefile
-configfile: "config.yaml"
+# # Snakefile
+# configfile: "config.yaml"
 
-import os
-import glob
+# import os
+# import glob
 
-# Function to check if input is a file or directory and return appropriate list
-def get_input_files(input_path):
-    if os.path.isdir(input_path):
-        return glob.glob(os.path.join(input_path, '*.csv'))
-    elif os.path.isfile(input_path):
-        return [input_path]
-    else:
-        raise ValueError("Invalid input path")
+# # Function to check if input is a file or directory and return appropriate list
+# def get_input_files(input_path):
+#     if os.path.isdir(input_path):
+#         return glob.glob(os.path.join(input_path, '*.csv'))
+#     elif os.path.isfile(input_path):
+#         return [input_path]
+#     else:
+#         raise ValueError("Invalid input path")
 
-# rule print_config:
-#     run:
-#         import yaml
-#         with open('config.yaml', 'r') as config_file:
-#             config = yaml.safe_load(config_file)
-#             for key, value in config.items():
-#                 print(f"{key}: {value}")
+# # rule print_config:
+# #     run:
+# #         import yaml
+# #         with open('config.yaml', 'r') as config_file:
+# #             config = yaml.safe_load(config_file)
+# #             for key, value in config.items():
+# #                 print(f"{key}: {value}")
 
-rule all:
-    input:
-        expand("{output_dir}/", output_dir=config['output_dir'])
-    log:
-        "logs/test.log"
+# rule all:
+#     input:
+#         expand("{output_dir}/", output_dir=config['output_dir'])
+#     log:
+#         "logs/test.log"
 
-
-rule run_tcrpeg_model:
-    input:
-        input_file = lambda wildcards: get_input_files(config["input_path"])
-    output:
-        directory("{output_dir}/")
-    params:
-        log_file = "{output_dir}/{config[log_filename]}"
-    # log:
-    #     lambda wildcards, input: f"logs/run_tcrpeg_model/{os.path.basename(input.input_file)}.log"
-        # "logs/run_tcrpeg_model/{input.input_file}.log"
-    # conda:
-        # "environment.yaml"
-    shell:
-        """
-        python i3_scripts/tcrpeg_p_infer.py \
-        --input {input.input_file} \
-        --output {wildcards.output_dir} \
-        --log_file tmp \
-        --device {config[device]} \
-        --seq_col {config[seq_col]} \
-        --count_col {config[count_col]} \
-        --id {config[id_col]} \
-        --word2vec_epochs {config[word2vec_epochs]} \
-        --epochs {config[epochs]} \
-        --word2vec_batch_size {config[word2vec_batch_size]} \
-        --word2vec_learning_rate {config[word2vec_learning_rate]} \
-        --hidden_size {config[hidden_size]} \
-        --num_layers {config[num_layers]} \
-        --batch_size {config[batch_size]} \
-        --learning_rate {config[learning_rate]} \
-        --test_size {config[test_size]} 
-        """ 
-
-
-#todo if output is infer prob run tcrpeg_p_infer.py
-#todo if output is heatmap run tcrpeg_p_heatmap.py
 
 # rule run_tcrpeg_model:
 #     input:
-#         lambda wildcards: get_input_files(config["input_path"])
-#         # get_input_files(config["input_path"], config["file_extension"])
+#         input_file = lambda wildcards: get_input_files(config["input_path"])
 #     output:
 #         directory("{output_dir}/")
 #     params:
 #         log_file = "{output_dir}/{config[log_filename]}"
-#     conda:
-#         "environment.yaml"
+#     # log:
+#     #     lambda wildcards, input: f"logs/run_tcrpeg_model/{os.path.basename(input.input_file)}.log"
+#         # "logs/run_tcrpeg_model/{input.input_file}.log"
+#     # conda:
+#         # "environment.yaml"
 #     shell:
 #         """
-#         python i3_scripts/tcrpeg_p_infer.py --input {input} --output {output} --log_file {params.log_file} \
-#         --device {config[device]} --seq_col {config[seq_col]} --count_col {config[count_col]} \
-#         --id {config[id_col]} --word2vec_epochs {config[word2vec_epochs]} --epochs {config[epochs]} \
-#         --word2vec_batch_size {config[word2vec_batch_size]} --word2vec_learning_rate {config[word2vec_learning_rate]} \
-#         --hidden_size {config[hidden_size]} --num_layers {config[num_layers]} --batch_size {config[batch_size]} \
-#         --learning_rate {config[learning_rate]} --test_size {config[test_size]}
-#         """
+#         python i3_scripts/tcrpeg_p_infer.py \
+#         --input {input.input_file} \
+#         --output {wildcards.output_dir} \
+#         --log_file tmp \
+#         --device {config[device]} \
+#         --seq_col {config[seq_col]} \
+#         --count_col {config[count_col]} \
+#         --id {config[id_col]} \
+#         --word2vec_epochs {config[word2vec_epochs]} \
+#         --epochs {config[epochs]} \
+#         --word2vec_batch_size {config[word2vec_batch_size]} \
+#         --word2vec_learning_rate {config[word2vec_learning_rate]} \
+#         --hidden_size {config[hidden_size]} \
+#         --num_layers {config[num_layers]} \
+#         --batch_size {config[batch_size]} \
+#         --learning_rate {config[learning_rate]} \
+#         --test_size {config[test_size]} 
+#         """ 
+
+
+# #todo if output is infer prob run tcrpeg_p_infer.py
+# #todo if output is heatmap run tcrpeg_p_heatmap.py
+
+# # rule run_tcrpeg_model:
+# #     input:
+# #         lambda wildcards: get_input_files(config["input_path"])
+# #         # get_input_files(config["input_path"], config["file_extension"])
+# #     output:
+# #         directory("{output_dir}/")
+# #     params:
+# #         log_file = "{output_dir}/{config[log_filename]}"
+# #     conda:
+# #         "environment.yaml"
+# #     shell:
+# #         """
+# #         python i3_scripts/tcrpeg_p_infer.py --input {input} --output {output} --log_file {params.log_file} \
+# #         --device {config[device]} --seq_col {config[seq_col]} --count_col {config[count_col]} \
+# #         --id {config[id_col]} --word2vec_epochs {config[word2vec_epochs]} --epochs {config[epochs]} \
+# #         --word2vec_batch_size {config[word2vec_batch_size]} --word2vec_learning_rate {config[word2vec_learning_rate]} \
+# #         --hidden_size {config[hidden_size]} --num_layers {config[num_layers]} --batch_size {config[batch_size]} \
+# #         --learning_rate {config[learning_rate]} --test_size {config[test_size]}
+# #         """
