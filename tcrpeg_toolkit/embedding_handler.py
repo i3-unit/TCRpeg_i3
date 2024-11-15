@@ -4,11 +4,69 @@ import logging
 import warnings
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import LabelEncoder
 
 from tcrpeg_toolkit.utils import load_data
+
+
+#improve extend from a base class
+
+# class BaseEmbedding:
+#     def __init__(self, embeddings, ids, sequences):
+#         self.embeddings = embeddings
+#         self.ids = ids 
+#         self.sequences = sequences
+    
+#     def __len__(self):
+#         return len(self.embeddings)
+    
+#     def __iter__(self):
+#         return iter(zip(self.embeddings, self.ids, self.sequences))
+
+# class Embedding(BaseEmbedding):
+#     # Add Embedding specific methods
+
+# class EmbeddingHandler(BaseEmbedding): 
+#     def __init__(self, data, name, metadata=None, key_metadata=None, key_embedding=None):
+#         super().__init__(data.embeddings, data.ids, data.sequences)
+#         self.name = name
+#         self.metadata = metadata
+#         # Add handler specific attributes
+
+
+# class Embedding(BaseEmbedding):
+#     def get_embedding_by_id(self, id):
+#         idx = np.where(self.ids == id)[0]
+#         return self.embeddings[idx] if len(idx) > 0 else None
+        
+#     def get_embedding_by_sequence(self, sequence):
+#         idx = np.where(self.sequences == sequence)[0]
+#         return self.embeddings[idx] if len(idx) > 0 else None
+        
+#     def filter_embeddings(self, mask):
+#         return self.embeddings[mask]
+        
+#     def normalize_embeddings(self):
+#         return sklearn.preprocessing.normalize(self.embeddings)
+        
+#     def reduce_dimensions(self, method='mean'):
+#         if method == 'mean':
+#             return np.mean(self.embeddings, axis=1)
+
+# class TCREmbeddingHandler(EmbeddingHandler):
+#     def tcr_specific_method(self):
+#         # Add TCR-specific functionality
+#         pass
+
+# class AntibodyEmbeddingHandler(EmbeddingHandler):
+#     def antibody_specific_method(self):
+#         # Add antibody-specific functionality
+#         pass
+
 
 class Embedding:
     def __init__(self, embeddings, ids=None, sequences=None):
@@ -19,13 +77,27 @@ class Embedding:
     def __repr__(self):
         return f"Embedding(embeddings_shape={self.embeddings.shape}, ids_shape={self.ids.shape}, sequences_shape={self.sequences.shape if self.sequences is not None else 'None'})"
 
+    def __len__(self):
+        return len(self.embeddings)
+
     def __add__(self, other):
         concatenated_embeddings = np.concatenate((self.embeddings, other.embeddings), axis=0)
         concatenated_ids = np.concatenate((self.ids, other.ids), axis=0) if self.ids is not None and other.ids is not None else None
         concatenated_sequences = np.concatenate((self.sequences, other.sequences), axis=0) if self.sequences is not None and other.sequences is not None else None
         return Embedding(concatenated_embeddings, concatenated_ids, concatenated_sequences)
 
-    def filter_by_id(self, ids_list):
+    def __getitem__(self, mask):
+        return Embedding(embeddings=self.embeddings[mask],
+                        ids=self.ids[mask],
+                        sequences=self.sequences[mask])
+    
+    def __iter__(self):
+        return iter(zip(self.embeddings, self.ids, self.sequences))
+    
+    def __contains__(self, item):
+        return item in self.sequences or item in self.ids
+
+    def filter_by_ids(self, ids_list):
         if self.ids is not None:
             mask = np.isin(self.ids, ids_list)
             return Embedding((self.embeddings[mask], self.ids[mask], 
@@ -152,9 +224,26 @@ class EmbeddingHandler():
                                 name=f"{self.name}_{other_handler.name}" if self.name and other_handler.name else None,
                                 key_embedding = self.key_embedding, key_metadata = self.key_metadata)
 
+    def __len__(self):
+        return len(self.embeddings)
+
+    def __getitem__(self, mask):
+        return EmbeddingHandler(data=Embedding(self.embeddings[mask], 
+                                         ids=self.ids[mask],
+                                         sequences=self.sequences[mask]),
+                           name=self.name,
+                           metadata=self.metadata[mask] if self.metadata is not None else None,
+                           key_metadata=self.key_metadata,
+                           key_embedding=self.key_embedding)
+
+    def __iter__(self):
+        return iter(zip(self.embeddings, self.ids, self.sequences))
+
+    def __contains__(self, item):
+        return item in self.sequences or item in self.ids
+    
     def _sort_metadata(self):
         #todo simplify this to match id and sequence for embedding and metadata
-        #todo fix issue when there is merge on sequence added with sample name
         try:
             if self.key_embedding == 'id':
                 # self.metadata[self.key_metadata] = self.metadata[self.key_metadata].astype(str)
@@ -222,15 +311,24 @@ class EmbeddingHandler():
             # Merge metadata on the ID column
             metadata_self_copy = self.metadata.copy()
             metadata_other_copy = other_handler.metadata.copy()
-            
-            metadata_self_copy[f"{self.key_metadata}_old"] = metadata_self_copy[self.key_metadata]
-            metadata_other_copy[f"{self.key_metadata}_old"] = metadata_other_copy[self.key_metadata]
+
+            original_key = f"original_{self.key_metadata}"
+            metadata_self_copy[f"original_{self.key_metadata}"] = metadata_self_copy[self.key_metadata]
+            metadata_other_copy[f"original_{self.key_metadata}"] = metadata_other_copy[self.key_metadata]
 
             metadata_self_copy["data_origin"] = self.name
             metadata_other_copy["data_origin"] = other_handler.name
 
-            metadata_self_copy[self.key_metadata] = metadata_self_copy[self.key_metadata].apply(lambda x: str(x) + ":" + self.name)
-            metadata_other_copy[self.key_metadata] = metadata_other_copy[self.key_metadata].apply(lambda x: str(x) + ":" + other_handler.name)
+            # Only modify the key if it's not the sequence
+            if self.key_metadata != 'sequence':
+                metadata_self_copy[self.key_metadata] = metadata_self_copy[self.key_metadata].apply(lambda x: str(x) + ":" + self.name)
+                metadata_other_copy[self.key_metadata] = metadata_other_copy[self.key_metadata].apply(lambda x: str(x) + ":" + other_handler.name)
+            else:
+                metadata_self_copy[f"{self.key_metadata}_data_origin"] = metadata_self_copy[self.key_metadata].apply(lambda x: str(x) + ":" + self.name)
+                metadata_other_copy[f"{self.key_metadata}_data_origin"] = metadata_other_copy[self.key_metadata].apply(lambda x: str(x) + ":" + other_handler.name)
+        
+            # metadata_self_copy[self.key_metadata] = metadata_self_copy[self.key_metadata].apply(lambda x: str(x) + ":" + self.name)
+            # metadata_other_copy[self.key_metadata] = metadata_other_copy[self.key_metadata].apply(lambda x: str(x) + ":" + other_handler.name)
             
             concatenated_metadata = pd.concat([metadata_self_copy, metadata_other_copy], axis=0).reset_index(drop=True)
 
@@ -248,7 +346,8 @@ class EmbeddingHandler():
             'data_origin': np.concatenate((
                 np.full(len(self.ids), self.name),
                 np.full(len(other_handler.ids), other_handler.name)
-            ))
+            )),
+            'original_id': np.concatenate((self.ids, other_handler.ids))
             })
             return concatenated_metadata
 
@@ -279,6 +378,8 @@ class EmbeddingHandler():
     def get_metadata(self):
         return self.metadata
 
+    # todo add save structured array, raw embeddings and maybe a new one structured with metadata
+
     def save_metadata(self, output_file):
         if self.metadata is not None:
             self.metadata.to_csv(output_file, index=False)
@@ -286,26 +387,58 @@ class EmbeddingHandler():
         else:
             logging.warning("No metadata to save.")
 
-    #todo add option for raw embeddings and structured to be save
+    #todo add documentation for the index: will be reset and the old one will be saved in a new index column
+
+    #fix maybe this is better 
+    # def downsample_embeddings(self, sample_size=None):
+    #     if sample_size is not None and self.embeddings.shape[0] > sample_size:
+    #         logging.info(f"Embeddings were downsampled to {sample_size}.")
+    #         selected_indices = np.random.choice(len(self.metadata), sample_size, replace=False)
+    #         boolean_mask = np.zeros(len(self.metadata), dtype=bool)
+    #         boolean_mask[selected_indices] = True
+    #     else:
+    #         logging.warning(f"Embeddings were not downsampled.")
+    #         boolean_mask = np.ones(self.embeddings.shape[0], dtype=bool)
+
+    #     return EmbeddingHandler(data=Embedding(self.embeddings[boolean_mask], ids=self.ids[boolean_mask],
+    #                                         sequences=self.sequences[boolean_mask]),
+    #                         name=self.name, 
+    #                         metadata=self.metadata[boolean_mask].reset_index(drop=True) if self.metadata is not None else None,
+    #                         key_metadata=self.key_metadata, 
+    #                         key_embedding=self.key_embedding)
+
     def downsample_embeddings(self, sample_size=None):
         if sample_size is not None and self.embeddings.shape[0] > sample_size:
-            logging.info(f"Data loaded was downsampled to {sample_size}")
+            logging.info(f"Embeddings were downsampled to {sample_size}.")
             mask = np.random.choice(self.embeddings.shape[0], sample_size, replace=False)
         else:
-            logging.warning(f"Data loaded from was not downsampled")
+            logging.warning(f"Embeddings were not downsampled.")
             mask = np.arange(self.embeddings.shape[0])
-            
+
         return EmbeddingHandler(data=Embedding(self.embeddings[mask], ids=self.ids[mask], 
                                                sequences=self.sequences[mask]),
-                                name=self.name, metadata=self.metadata[mask] if self.metadata is not None else None,
+                                name=self.name, 
+                                metadata=self.metadata.iloc[mask].reset_index(drop=False) if self.metadata is not None else None,
                                 key_metadata=self.key_metadata, key_embedding=self.key_embedding)
-       
+
+    #todo add option for the filter to keep original index or not
             
-    def filter_by_id(self, ids_list):
+    def filter_by_ids(self, ids_list):
         if self.ids is not None:
             mask = np.isin(self.ids, ids_list)
             return EmbeddingHandler(data=Embedding(self.embeddings[mask], ids=self.ids[mask], sequences=self.sequences[mask]),
-                                    name=self.name, metadata=self.metadata[mask] if self.metadata is not None else None,
+                                    name=self.name, 
+                                    metadata=self.metadata[mask].reset_index(drop=False) if self.metadata is not None else None,
+                                    key_metadata=self.key_metadata, key_embedding=self.key_embedding)
+        else:
+            return None
+
+    def filter_by_sequences(self, sequences):
+        if self.sequences is not None:
+            mask = np.isin(self.sequences, sequences)
+            return EmbeddingHandler(data=Embedding(self.embeddings[mask], ids=self.ids[mask], sequences=self.sequences[mask]),
+                                    name=self.name,
+                                    metadata=self.metadata[mask].reset_index(drop=False) if self.metadata is not None else None,
                                     key_metadata=self.key_metadata, key_embedding=self.key_embedding)
         else:
             return None
@@ -333,7 +466,8 @@ class EmbeddingHandler():
             else:
                 mask = self.metadata[key] == values
                 name = f"{self.name}_{key}_{values}" if self.name else f"{key}_{values}"
-            return EmbeddingHandler(data=Embedding(self.embeddings[mask], self.ids[mask], self.sequences[mask]), metadata=self.metadata[mask], name=name)
+            return EmbeddingHandler(data=Embedding(self.embeddings[mask], self.ids[mask], self.sequences[mask]),
+                                    metadata=self.metadata[mask].reset_index(drop=True), name=name)
         else:
             return None
 
@@ -361,6 +495,8 @@ class EmbeddingHandler():
 
     def plot_similarity_heatmap(self, other_handler, title="Similarity Heatmap", calculate_max_similarity=True):
         similarity_matrix, _ = self.calculate_similarity_difference(other_handler)
+
+        #todo add this to a self variable so only one calculation
 
         plt.figure(figsize=(10, 8))
         sns.heatmap(similarity_matrix, cmap="RdBu", annot=False,
