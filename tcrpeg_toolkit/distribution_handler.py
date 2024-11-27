@@ -304,6 +304,37 @@ class DistributionProcessor:
         
         return Distribution(self.distributions, self.ids, distance_matrix=self.distance_matrix, distance_metric=self.distance_metric)
 
+
+#improve with accessible level for distance metric handling
+
+# class DistanceMetricHandler:
+#     def __init__(self):
+#         self.metric_ranges = {
+#             'jensenshannon': (0, 1),
+#             'braycurtis': (0, 1),
+#             # ... rest of metrics
+#         }
+        
+#     def calculate_distance(self, distributions, metric='jsd', **kwargs):
+#         match metric:
+#             case ('jensenshannon' | 'braycurtis' | ...):
+#                 return squareform(pdist(distributions, metric=metric, **kwargs))
+#             case 'wd' | 'wsd' | 'wasserstein':
+#                 return squareform(pdist(distributions, lambda u, v: wasserstein_distance(u, v)))
+#             # ... rest of cases
+
+# class DistributionProcessor:
+#     def __init__(self, data, distribution_type='p_infer'):
+#         self.distance_handler = DistanceMetricHandler()
+#         # ... rest of init
+        
+#     def calculate_distance_matrix(self, metric='jsd', **kwargs):
+#         self.distance_matrix = self.distance_handler.calculate_distance(
+#             self.distributions, metric, **kwargs)
+#         self.distance_metric = metric
+#         return self.distance_matrix
+
+
 #todo separate distribution distance and metadata from plot
 
 class DistributionHeatmapPlotter:
@@ -526,6 +557,8 @@ class DistributionHeatmapPlotter:
         linewidths = kwargs.pop('linewidths', 0)
         method = kwargs.pop('method', 'ward')
         figsize = kwargs.pop('figsize', (6,6))
+        dendrogram_ratio = kwargs.pop('dendrogram_ratio', (.1, .2))
+        cmap = kwargs.pop('cmap', 'vlag')
 
         # From legend_kwargs
         legend_location = legend_kwargs.pop('loc', 'lower left')
@@ -552,13 +585,13 @@ class DistributionHeatmapPlotter:
     
         else:
             g = sns.clustermap(self.distance_matrix_annotated, 
-                        cmap="vlag", 
+                        cmap=cmap, 
                         row_colors=row_colors, 
                         col_colors=col_colors,
                         vmin = v_min,
                         vmax = v_max,
                         center=center,
-                        dendrogram_ratio=(.1, .2),
+                        dendrogram_ratio=dendrogram_ratio,
                         cbar_pos=(1, .6, .03, .2),
                         linewidths=linewidths, 
                         xticklabels=False,  # Removes column names
@@ -570,6 +603,15 @@ class DistributionHeatmapPlotter:
             # Remove axis labels
             g.ax_heatmap.set_xlabel('')
             g.ax_heatmap.set_ylabel('')
+
+            # Access the figure and grid spec to add space between heatmap and row colors
+            # g.ax_heatmap.set_position([
+            #     g.ax_heatmap.get_position().x0 + 0.02,  # Move right
+            #     g.ax_heatmap.get_position().y0 - 0.02,        # Keep y position
+            #     g.ax_heatmap.get_position().width,      # Keep width
+            #     g.ax_heatmap.get_position().height      # Keep height
+            # ])
+
 
             # Remove ticks from color bars
             if g.ax_row_colors is not None:
@@ -646,17 +688,28 @@ class DistributionHeatmapPlotter:
             if show is False:
                 plt.close()
             return g
-    
-    def run(self, palette_mapping=None, filter_existing_values=None, legend_kwargs={}, **kwargs):
+
+    #improve distance calculation during run not init
+    def run(self, palette_mapping=None, filter_existing_values=None, log_message=True, legend_kwargs={}, **kwargs):
+        # Store current logging level
+        current_level = logging.getLogger().getEffectiveLevel()
+        
+        if not log_message:
+            logging.getLogger().setLevel(logging.ERROR)
+        
+        # Run operations
         self.process_metadata()
         self.create_multi_index(columns=kwargs.get('columns'))
         self.annotate_distance_matrix()
         self.assign_metadata_color(palette_mapping=palette_mapping, filter_existing_values=filter_existing_values)
 
         # Check if row_colors or col_colors is given as argument default to metadata multi index colors
-        row_colors = kwargs.pop('row_colors', self.metadata_multi_idx_colors )
+        row_colors = kwargs.pop('row_colors', self.metadata_multi_idx_colors)
         col_colors = kwargs.pop('col_colors', self.metadata_multi_idx_colors)
-        plot = self.plot_heatmap(row_colors=row_colors, col_colors=col_colors, legend_kwargs=legend_kwargs, **kwargs)
+        plot = self.plot_heatmap(row_colors=row_colors, col_colors=col_colors, **kwargs)
+
+        # Restore original logging level
+        logging.getLogger().setLevel(current_level)
 
         return plot
 
