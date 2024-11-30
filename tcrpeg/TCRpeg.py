@@ -67,14 +67,39 @@ class TCRpeg:
         self.aas = "sACDEFGHIKLMNPQRSTVWYe"  # 0 index is the padding,1 is START, 22 is END
         self.aa2idx = {self.aas[i]: i for i in range(len(self.aas))}
         self.idx2aa = {v: k for k, v in self.aa2idx.items()}
-        
-        vs_default = ['TRBV10-1','TRBV10-2','TRBV10-3','TRBV11-1','TRBV11-2','TRBV11-3','TRBV12-5', 'TRBV13', 'TRBV14', 'TRBV15', 
+
+        # V gene list for human
+        trbv_default_human = ['TRBV10-1','TRBV10-2','TRBV10-3','TRBV11-1','TRBV11-2','TRBV11-3','TRBV12-5', 'TRBV13', 'TRBV14', 'TRBV15', 
         'TRBV16', 'TRBV18','TRBV19','TRBV2', 'TRBV20-1', 'TRBV25-1', 'TRBV27', 'TRBV28', 'TRBV29-1', 'TRBV3-1', 'TRBV30',
         'TRBV4-1', 'TRBV4-2','TRBV4-3',
         'TRBV5-1', 'TRBV5-4', 'TRBV5-5', 'TRBV5-6', 'TRBV5-8','TRBV6-1', 'TRBV6-4', 'TRBV6-5', 'TRBV6-6','TRBV6-8', 'TRBV6-9', 'TRBV7-2', 'TRBV7-3',
         'TRBV7-4', 'TRBV7-6', 'TRBV7-7', 'TRBV7-8', 'TRBV7-9', 'TRBV9']
-        js_default = ['TRBJ1-1', 'TRBJ1-2', 'TRBJ1-3','TRBJ1-4', 'TRBJ1-5', 'TRBJ1-6','TRBJ2-1', 'TRBJ2-2', 'TRBJ2-3', 'TRBJ2-4', 'TRBJ2-6', 'TRBJ2-7']
-        vs_default.sort() #to keep the order
+
+        # V  gene list for mouse
+        trbv_default_mice =  [
+        'TRBV1', 'TRBV2', 'TRBV3', 'TRBV4', 'TRBV5', 'TRBV6', 'TRBV7', 'TRBV8', 'TRBV9', 'TRBV10',
+        'TRBV11', 'TRBV12-1', 'TRBV13-1', 'TRBV12-2', 'TRBV13-2', 'TRBV12-3', 'TRBV13-3', 'TRBV14',
+        'TRBV15', 'TRBV16', 'TRBV17', 'TRBV18', 'TRBV19', 'TRBV20', 'TRBV21', 'TRBV22', 'TRBV23',
+        'TRBV24', 'TRBV25', 'TRBV26', 'TRBV27', 'TRBV28', 'TRBV29', 'TRBV30', 'TRBV31'
+        ]
+
+        # Unique V genes
+        vs_default = list(set(trbv_default_human + trbv_default_mice))
+
+        # J gene list for human
+        trbj_default_human = ['TRBJ1-1', 'TRBJ1-2', 'TRBJ1-3','TRBJ1-4', 'TRBJ1-5', 'TRBJ1-6','TRBJ2-1', 'TRBJ2-2', 'TRBJ2-3', 'TRBJ2-4', 'TRBJ2-6', 'TRBJ2-7']
+
+        # J gene list for mouse
+        trbj_default_mice = [
+            'TRBJ1-1', 'TRBJ1-2', 'TRBJ1-3', 'TRBJ1-4', 'TRBJ1-5', 'TRBJ1-6', 'TRBJ1-7',
+            'TRBJ2-1', 'TRBJ2-2', 'TRBJ2-3', 'TRBJ2-4', 'TRBJ2-5', 'TRBJ2-6', 'TRBJ2-7'
+        ]
+
+        # Unique J genes
+        js_default = list(set(trbj_default_human + trbj_default_mice))
+
+        # Reordering the gene list
+        vs_default.sort()
         js_default.sort()
 
         if vs_list is not None:

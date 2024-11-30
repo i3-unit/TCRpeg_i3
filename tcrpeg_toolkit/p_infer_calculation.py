@@ -118,15 +118,15 @@ class TCRpegModel:
                                record_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt')
         logging.info("Word2Vec model trained successfully.")
 
-    def train_model(self, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4):
+    def train_model(self, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4, use_vj=False, load=False, path=None):
         logging.info("Training TCRpeg model...")
         self.model = TCRpeg(hidden_size=hidden_size, num_layers=num_layers, load_data=True, max_length=50,
                             # embedding_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt',
-                            embedding_path='tcrpeg/data/embedding_32.txt',
+                            embedding_path='tcrpeg/data/embedding_32.txt', vj=use_vj,
                             #fix testing with the provided word2vec
                             path_train=self.sequences_train, device=self.device)
-        
-        self.model.create_model()
+
+        self.model.create_model(vj=use_vj)
         batch_size = min(batch_size, len(self.sequences_train))
         self.model.train_tcrpeg(epochs=epochs, batch_size=batch_size, lr=learning_rate)
         self.model.save(f'{self.models_dir}/{self.input_name}.pth')
@@ -173,14 +173,14 @@ class TCRpegModel:
     def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
             word2vec_epochs=10, word2vec_batch_size=100, word2vec_learning_rate=1e-4,
             hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4,
-            min_count=1):
+            min_count=1, use_vj=False):
         self.prepare_directories_and_filenames()
         self.load_and_preprocess_data(seq_col=seq_col, id_col=id_col, count_col=count_col)
         self.split_data(test_size=test_size)
         self.train_word2vec(epochs=word2vec_epochs, batch_size=word2vec_batch_size,
                             learning_rate=word2vec_learning_rate)
         self.train_model(hidden_size=hidden_size, num_layers=num_layers, epochs=epochs, batch_size=batch_size,
-                        learning_rate=learning_rate)
+                        learning_rate=learning_rate, use_vj=use_vj)
         self.probability_inference(min_count=min_count)
         self.calculate_embeddings()
 
@@ -217,6 +217,8 @@ if __name__ == "__main__":
                         type=float, default=0.2)
     parser.add_argument('--min_count', help='Minimum count for probability inference (default: 1)',
                         type=float, default=1)
+    parser.add_argument('--use_vj', help='Use VJ for probability inference (default: False)',
+                        action='store_true')
     parser.add_argument('--log', help='Log file to save logs (default: tcrpeg_p-infer.log)',
                         default='tcrpeg_p-infer.log')
 
@@ -245,6 +247,6 @@ if __name__ == "__main__":
                     word2vec_batch_size=args.word2vec_batch_size, word2vec_learning_rate=args.word2vec_learning_rate,
                     hidden_size=args.hidden_size, num_layers=args.num_layers, epochs=args.epochs,
                     batch_size=args.batch_size, learning_rate=args.learning_rate,
-                    min_count=args.min_count)
+                    min_count=args.min_count, use_vj=args.use_vj)
     
     logging.info("Model training and inference completed successfully.")
