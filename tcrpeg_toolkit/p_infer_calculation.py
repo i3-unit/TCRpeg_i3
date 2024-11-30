@@ -110,6 +110,7 @@ class TCRpegModel:
 
     def train_word2vec(self, epochs=10, batch_size=100, learning_rate=1e-4):
         logging.info("Training Word2Vec model...")
+        batch_size = min(batch_size, len(self.sequences_train))
         self.aa_emb = word2vec(path=self.sequences_train, epochs=epochs,
                                batch_size=batch_size,
                                device=self.device, lr=learning_rate,
@@ -126,6 +127,7 @@ class TCRpegModel:
                             path_train=self.sequences_train, device=self.device)
         
         self.model.create_model()
+        batch_size = min(batch_size, len(self.sequences_train))
         self.model.train_tcrpeg(epochs=epochs, batch_size=batch_size, lr=learning_rate)
         self.model.save(f'{self.models_dir}/{self.input_name}.pth')
         logging.info("TCRpeg model trained successfully.")

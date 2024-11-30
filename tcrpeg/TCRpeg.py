@@ -60,7 +60,7 @@ class TCRpeg:
         embedding = np.zeros((23, embedding_size))  # 23 x letent_dim
         embedding[1:, :] = emb[:, 1:].astype(float)  # 22 x latent_dim
         self.embedding_layer = nn.Embedding.from_pretrained(
-            torch.tensor(embedding), padding_idx=0
+            torch.tensor(embedding, dtype=torch.float32), padding_idx=0
         ).to(device) #the embedding layer for AAs
         self.num_layers = num_layers
 
@@ -70,9 +70,9 @@ class TCRpeg:
         
         vs_default = ['TRBV10-1','TRBV10-2','TRBV10-3','TRBV11-1','TRBV11-2','TRBV11-3','TRBV12-5', 'TRBV13', 'TRBV14', 'TRBV15', 
         'TRBV16', 'TRBV18','TRBV19','TRBV2', 'TRBV20-1', 'TRBV25-1', 'TRBV27', 'TRBV28', 'TRBV29-1', 'TRBV3-1', 'TRBV30',
-'TRBV4-1', 'TRBV4-2','TRBV4-3',
- 'TRBV5-1', 'TRBV5-4', 'TRBV5-5', 'TRBV5-6', 'TRBV5-8','TRBV6-1', 'TRBV6-4', 'TRBV6-5', 'TRBV6-6','TRBV6-8', 'TRBV6-9', 'TRBV7-2', 'TRBV7-3',
-  'TRBV7-4', 'TRBV7-6', 'TRBV7-7', 'TRBV7-8', 'TRBV7-9', 'TRBV9']
+        'TRBV4-1', 'TRBV4-2','TRBV4-3',
+        'TRBV5-1', 'TRBV5-4', 'TRBV5-5', 'TRBV5-6', 'TRBV5-8','TRBV6-1', 'TRBV6-4', 'TRBV6-5', 'TRBV6-6','TRBV6-8', 'TRBV6-9', 'TRBV7-2', 'TRBV7-3',
+        'TRBV7-4', 'TRBV7-6', 'TRBV7-7', 'TRBV7-8', 'TRBV7-9', 'TRBV9']
         js_default = ['TRBJ1-1', 'TRBJ1-2', 'TRBJ1-3','TRBJ1-4', 'TRBJ1-5', 'TRBJ1-6','TRBJ2-1', 'TRBJ2-2', 'TRBJ2-3', 'TRBJ2-4', 'TRBJ2-6', 'TRBJ2-7']
         vs_default.sort() #to keep the order
         js_default.sort()
