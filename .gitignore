@@ -1,3 +1,4 @@
 .snakemake/
 __pycache__/
 tcrpeg.egg-info/
+tmp
