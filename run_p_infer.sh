@@ -25,9 +25,10 @@ num_layers=5
 batch_size=32
 learning_rate=1e-4
 test_size=0.4
+vj=false
 
 # Parse command-line options
-while getopts 'i:o:d:s:c:I:w:e:b:l:H:n:B:L:t:h' flag; do
+while getopts 'i:o:d:s:c:I:w:e:b:l:H:n:B:L:t:vh' flag; do
   case "${flag}" in
     i) input_dir="${OPTARG}" ;;
     o) output_dir="${OPTARG}" ;;
@@ -44,7 +45,8 @@ while getopts 'i:o:d:s:c:I:w:e:b:l:H:n:B:L:t:h' flag; do
     B) batch_size="${OPTARG}" ;;
     L) learning_rate="${OPTARG}" ;;
     t) test_size="${OPTARG}" ;;
-    h) echo "Usage: $0 -i input_dir -o output_dir -d device -s seq_col -c count_col -I id_col -w word2vec_epochs -e epochs -b word2vec_batch_size -l word2vec_learning_rate -H hidden_size -n num_layers -B batch_size -L learning_rate -t test_size" && exit 1 ;;
+    v) vj=true ;; 
+    h) echo "Usage: $0 -i input_dir -o output_dir -d device -s seq_col -c count_col -I id_col -w word2vec_epochs -e epochs -b word2vec_batch_size -l word2vec_learning_rate -H hidden_size -n num_layers -B batch_size -L learning_rate -t test_size -v use_vj" && exit 1 ;;
     *) echo "Unexpected option ${flag}" && exit 1 ;;
   esac
 done
@@ -57,6 +59,13 @@ fi
 
 mkdir -p "$output_dir"
 mkdir -p "$output_dir"/logs
+
+# When calling Python script, use if condition
+if [ "$vj" = true ]; then
+  vj_flag="--vj"
+else
+  vj_flag=""
+fi
 
 # Loop through all files in the input directory
 for file in "$input_dir"/*.csv; do
@@ -80,6 +89,7 @@ for file in "$input_dir"/*.csv; do
       --batch_size "${batch_size:-100}" \
       --learning_rate "${learning_rate:-1e-4}" \
       --test_size "${test_size:-0.2}" \
+      $vj_flag \
       --log "$output_dir/logs/${sample_name}_tcrpeg_p_infer.log"
   fi
 done
