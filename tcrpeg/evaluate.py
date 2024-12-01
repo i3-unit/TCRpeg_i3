@@ -72,8 +72,11 @@ class evaluation:
         with torch.no_grad():        
             for i in tqdm(range(int(len(seqs)/batch_size)+1)):
                 end = len(seqs) if (i+1) * batch_size > len(seqs) else (i+1) * batch_size
-                seq_batch = seqs[i * batch_size : end]                
-                log_probs = self.model.sampling_tcrpeg(seq_batch) #change here
+                seq_batch = seqs[i * batch_size : end]     
+                if self.vj:
+                    log_probs = self.model.sampling_tcrpeg_vj(seq_batch)
+                else:           
+                    log_probs = self.model.sampling_tcrpeg(seq_batch) #change here
                 record[i*batch_size : end] = np.exp(log_probs)
                 seq_with_record.extend(list(zip(seq_batch, np.exp(log_probs))))
         record_sum = np.sum(record)

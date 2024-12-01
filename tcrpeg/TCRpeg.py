@@ -125,6 +125,7 @@ class TCRpeg:
         self.hidden_size = hidden_size
 
         self.evaluate = True if evaluate != 0 else False
+        
         if load_data:
             if vj:
                 if type(path_train) is not str:
@@ -140,7 +141,7 @@ class TCRpeg:
                     self.aas_seqs_train = self.load_data(path_train)
             if self.evaluate:
                 #remember to add!!
-                if vj is not None:
+                if vj:
                     if type(path_train) is not str:
                         self.aas_seqs_test = np.array([x[0] for x in path_test])
                         self.vs_test,self.js_test=[x[1] for x in path_test],[x[2] for x in path_test]
@@ -149,8 +150,8 @@ class TCRpeg:
                     self.vs_test,self.js_test = self.gene2embs(self.vs_test,'v'),self.gene2embs(self.js_test,'j')
                 else :
                     if type(path_test) is not str:
-                        self.aas_seqs_test = path_test
-                    else :
+                        # self.aas_seqs_test = path_test
+                    # else :
                         self.aas_seqs_test = self.load_data(path_test)
             print("Have loaded the data, total training seqs :", len(self.aas_seqs_train))
 
@@ -299,14 +300,29 @@ class TCRpeg:
             probs = torch.where(target > 0, probs, torch.FloatTensor([0.0])) #mask out the probs of padding positions
             logpx_given_z = probs.sum(dim=-1).numpy()
             return logpx_given_z  # B, log probability
+    
     def sampling_tcrpeg_vj(self, seqs):
         '''        
         @seqs: list containing CDR3 sequences
         #return: the log_prob of the input sequences
         '''
-        vs,js = seqs[1],seqs[2]
-        vs_idx,js_idx = [self.v2idx[v] for v in vs],[self.j2idx[v] for v in js]
-        seqs = seqs[0]
+        # vs,js = seqs[1],seqs[2]
+        # vs_idx,js_idx = [self.v2idx[v] for v in vs],[self.j2idx[v] for v in js]
+        # seqs = seqs[0]
+        all_sequences = seqs 
+        seqs = [item[0] for item in all_sequences]
+        vs = [item[1] for item in all_sequences]
+        js = [item[2] for item in all_sequences]
+        vs_idx, js_idx = [self.v2idx[v] for v in vs], [self.j2idx[v] for v in js]
+        # seqs = self.aas_seqs_test
+        # print("--------------------------------------------------")
+        # print('seqs: ', seqs)
+        # print("--------------------------------------------------")
+        # vs, js = self.vs_test, self.js_test
+        # print('vs, js : ', vs, js )
+        # print("--------------------------------------------------")
+        # vs_idx, js_idx = [self.v2idx[v] for v in vs], [self.j2idx[v] for v in js]
+                    
         with torch.no_grad():
             batch_size = len(seqs)
             inputs, targets, lengths = self.aas2embs(seqs)
@@ -387,7 +403,6 @@ class TCRpeg:
             return logpx_given_z  # B, log probability
 
 
-
     def train_tcrpeg(self, epochs, batch_size, lr, info=None, model_name=None,record_dir=None):
         '''
         @epochs: epochs
@@ -406,7 +421,6 @@ class TCRpeg:
             info = 'Not provided'
         if model_name is None:
             model_name = 'Not provided'
-        
 
         # start_time = datetime.now().strftime("%m_%d_%Y-%H:%M:%S")
         if record:
@@ -418,7 +432,6 @@ class TCRpeg:
                 f.write(info + "\n")
         aas_seqs = self.aas_seqs_train
 
-        
         for epoch in range(epochs):
             print("begin epoch :", epoch + 1)
             self.model.train()
