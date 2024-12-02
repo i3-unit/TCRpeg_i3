@@ -68,7 +68,7 @@ def identify_signature_sequences(structured_arrays_dict, reference_sample):
 
 
 def identify_signature_sequences_and_update(structured_arrays_dict, reference_sample):
-    # Concatenate all data into a single DataFrame
+    # Concatenate all data into a single DataFrame, considering optional v and j gene information
     frames = []
     for sample, data in structured_arrays_dict.items():
         df = pd.DataFrame(data)
@@ -76,20 +76,31 @@ def identify_signature_sequences_and_update(structured_arrays_dict, reference_sa
         frames.append(df)
     all_data = pd.concat(frames)
 
-    # Compute the max pinfer across samples for each sequence
-    max_pinfer = all_data.groupby('sequence')['pinfer'].max().rename('max_pinfer')
+    # Define the grouping columns based on the available data
+    group_columns = ['sequence']
+    if 'v' in all_data.columns and 'j' in all_data.columns:
+        group_columns += ['v', 'j']
+
+    # Compute the max pinfer across samples for each sequence combination
+    max_pinfer = all_data.groupby(group_columns)['pinfer'].max().rename('max_pinfer')
 
     # Merge max pinfer back to the original data
-    all_data = all_data.merge(max_pinfer, left_on='sequence', right_index=True)
+    all_data = all_data.merge(max_pinfer, on=group_columns)
 
     # Add 'signature' column, True if the sequence's pinfer equals the max_pinfer and is from the reference sample
     all_data['signature'] = (all_data['sample'] == reference_sample) & (all_data['pinfer'] == all_data['max_pinfer'])
 
-    # Filter to find signatures
-    signatures = all_data[(all_data['sample'] == reference_sample) & (all_data['pinfer'] == all_data['max_pinfer'])]
+    # Filter to find signatures, ensuring to select additional gene information if present
+    signature_columns = ['sample', 'id', 'sequence', 'pinfer', 'signature'] + group_columns[1:]  # Avoid duplicating sequence
 
-    return all_data[['sample', 'id', 'sequence', 'pinfer', 'signature']], signatures[['id', 'sequence', 'pinfer']].to_records(index=False)
+    # Return the full data and a structured array of signatures
+    signatures = all_data[(all_data['sample'] == reference_sample) & all_data['signature']]
 
+    # Convert to records then change dtype
+    signatures_records = signatures[['id', 'sequence', 'pinfer'] + group_columns[1:]].to_records(index=False)
+    signatures_records = signatures_records.astype([('id', 'U50'), ('sequence', 'U100'), ('pinfer', 'f4')] + [(col, 'U50') for col in group_columns[1:]])
+
+    return all_data[signature_columns], signatures_records
 
 
 class PinferCalculation:
@@ -229,7 +240,7 @@ class PinferCalculation:
         return structured_pinfer
 
     @staticmethod
-    def run_for_folder(data_dir, model_dir, output_dir, default_embedding_file=None, embedding_dir=None, vj=False, signature=True, device='cpu'):
+    def run_for_folder(data_dir, model_dir, output_dir, default_embedding_file=None, embedding_dir=None, seq_col='sequence', vj=False, signature=True, device='cpu'):
         # List all data files in the data directory
         data_files = sorted([os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.csv')])
 
@@ -265,36 +276,40 @@ class PinferCalculation:
                 embedding_file=embedding_file,
                 sequence_file=data_file,
                 output_dir=output_dir,
-                device=device
+                device=device,
             )
             # Store the structured array containg p_infer, seq, id, v and j gene
-            p_infer_model = pinfer_calc.run(vj=vj)
+            p_infer_model = pinfer_calc.run(vj=vj, seq_col=seq_col)
 
             # Store the structured array in the dictionary
             p_infer_results[sample_name] = p_infer_model
 
         if signature:
-            signatures_df_and_array = [identify_signature_sequences_and_update(p_infer_results, x) for x in sample_info.keys()]
-            return p_infer_results, signatures_df_and_array
+            logging.info(f"Calculating signature ...")
+            os.makedirs(os.path.join(output_dir, 'signatures'), exist_ok=True)
+            os.makedirs(os.path.join(output_dir, 'sequences_analysis'), exist_ok=True)
+            
+            for sample in sample_info.keys():
+                sample_signature_non_signature_df, sample_signature_array = identify_signature_sequences_and_update(p_infer_results, sample)
+                # Save dataframe 
+                sample_signature_non_signature_df.to_csv(f'{output_dir}/sequences_analysis/{sample}all_sequences_with_signatures.csv', index=False)
+                # Save array containing signature for each file 
+                np.save(f'{output_dir}/signatures/{sample}_signature.npy', sample_signature_array)
+            logging.info(f"Signature successfully calculated and saved for {len(sample_info.keys())}.")
 
-            # Create a new dataframe with sample_name, sequence, p_infer, id, v and j genes
         return p_infer_results
             
-
-    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TCRpeg classification model.')
-    parser.add_argument('-i', '--model', help='Model file', required=True)
-    parser.add_argument('-i', '--sequences', help='Sequence file', required=True)
-    parser.add_argument('-i', '--embeddings', help='Embedding file', required=True)
-    parser.add_argument('-o', '--output', help='Directory to save embeddings, models and p-infer',
-                        required=True)
-    parser.add_argument('--hidden_size', help='Hidden size in the trained model (default: 128, check log file for verification)',
-                        type=int, default=128)
-    parser.add_argument('--num_layers', help='Number of layers in the trained model (default: 5, check log file for verification)',
-                        type=int, default=5)
-    parser.add_argument('-d', '--device', help='Device to use (cpu, cuda:0, mps)', default='cpu',
-                        choices=["cpu", "cuda:0", "mps"])
+    parser.add_argument('-m', '--model', help='Model file', required=True)
+    parser.add_argument('-s', '--sequences', help='Sequence file', required=True)
+    parser.add_argument('-e', '--embeddings', help='Embedding file', required=True)
+    parser.add_argument('-o', '--output', help='Directory to save embeddings, models and p-infer', required=True)
+    parser.add_argument('--hidden_size', help='Hidden size in the trained model (default: 128, check log file for verification)', type=int, default=128)
+    parser.add_argument('--num_layers', help='Number of layers in the trained model (default: 5, check log file for verification)', type=int, default=5)
+    parser.add_argument('-d', '--device', help='Device to use (cpu, cuda:0, mps)', default='cpu', choices=["cpu", "cuda:0", "mps"])
+    parser.add_argument('--vj', help='Use V and J genes', action='store_true')
+    parser.add_argument('--signature', help='Calculate signature sequences', action='store_true')
 
     # Parse the arguments
     args = parser.parse_args()
@@ -304,7 +319,26 @@ if __name__ == "__main__":
         logging.warning("MPS device requested but not available. Falling back to CPU.")
         args.device = 'cpu'
 
-    model_infer = PinferCalculation(model_file=args.model, sequence_file=args.sequences, output_dir=args.output, device=args.device, hidden_size=args.hidden_size, num_layers=args.num_layers)
-    model_infer.run()
-    
+    # Configure logging
+    configure_logging(os.path.join(args.output, 'model_evaluation.log'))
+
+    # Run the PinferCalculation
+    pinfer_calc = PinferCalculation(
+        model_file=args.model,
+        embedding_file=args.embeddings,
+        sequence_file=args.sequences,
+        output_dir=args.output,
+        device=args.device
+    )
+    structured_pinfer = pinfer_calc.run(
+        hidden_size=args.hidden_size,
+        num_layers=args.num_layers,
+        vj=args.vj,
+    )
+
+    # if args.signature:
+    #     sample_name = os.path.basename(args.sequences).split('.csv')[0]
+    #     _, sample_signature_array = identify_signature_sequences_and_update({sample_name: structured_pinfer}, sample_name)
+    #     np.save(os.path.join(args.output, 'signatures', f'{sample_name}_signature.npy'), sample_signature_array)
+
     logging.info("Inference completed successfully.")
