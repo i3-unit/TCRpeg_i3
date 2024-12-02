@@ -298,6 +298,7 @@ class PinferCalculation:
             logging.info(f"Signature successfully calculated and saved for {len(sample_info.keys())}.")
 
         return p_infer_results
+#improve create base class for any comparison, add snakemake
             
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TCRpeg classification model.')
