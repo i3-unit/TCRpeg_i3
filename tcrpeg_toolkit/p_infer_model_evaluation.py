@@ -292,7 +292,7 @@ class PinferCalculation:
             for sample in sample_info.keys():
                 sample_signature_non_signature_df, sample_signature_array = identify_signature_sequences_and_update(p_infer_results, sample)
                 # Save dataframe 
-                sample_signature_non_signature_df.to_csv(f'{output_dir}/sequences_analysis/{sample}all_sequences_with_signatures.csv', index=False)
+                sample_signature_non_signature_df.to_csv(f'{output_dir}/sequences_analysis/{sample}_all_sequences_with_signatures.csv', index=False)
                 # Save array containing signature for each file 
                 np.save(f'{output_dir}/signatures/{sample}_signature.npy', sample_signature_array)
             logging.info(f"Signature successfully calculated and saved for {len(sample_info.keys())}.")
