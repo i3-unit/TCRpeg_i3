@@ -237,7 +237,8 @@ class TCRpeg:
                 self.max_length,
                 num_layers=self.num_layers  ,
                 num_v = len(self.vs_list),
-                num_j = len(self.js_list),device=self.device
+                num_j = len(self.js_list),
+                device=self.device
             )
             self.vj=True
         else :
@@ -246,12 +247,13 @@ class TCRpeg:
                 self.embedding_size,
                 self.hidden_size,
                 dropout=self.dropout,
-                num_layers=self.num_layers,device=self.device
+                num_layers=self.num_layers,
+                device=self.device
                 )
             self.vj=False
         model.train()
         if load:
-            model.load_state_dict(torch.load(path))
+            model.load_state_dict(torch.load(path, weights_only=True))
             model.eval()
         self.model = model.to(self.device)
         # return model    
@@ -314,14 +316,6 @@ class TCRpeg:
         vs = [item[1] for item in all_sequences]
         js = [item[2] for item in all_sequences]
         vs_idx, js_idx = [self.v2idx[v] for v in vs], [self.j2idx[v] for v in js]
-        # seqs = self.aas_seqs_test
-        # print("--------------------------------------------------")
-        # print('seqs: ', seqs)
-        # print("--------------------------------------------------")
-        # vs, js = self.vs_test, self.js_test
-        # print('vs, js : ', vs, js )
-        # print("--------------------------------------------------")
-        # vs_idx, js_idx = [self.v2idx[v] for v in vs], [self.j2idx[v] for v in js]
                     
         with torch.no_grad():
             batch_size = len(seqs)
