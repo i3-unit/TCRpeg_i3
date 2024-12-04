@@ -77,7 +77,9 @@ class TCRpegModel:
         if self.input_name is None:
             # Extract the input file name without extension
             self.input_name = os.path.splitext(os.path.basename(self.input_file))[0]
-        
+
+    #improve this to a utils or a base class and unique vs not in train here
+    
     def load_and_preprocess_data(self, seq_col='sequence', id_col='id', count_col='count', v_col='v', j_col='j', vj=False):
         self.data = load_data(self.input_file)
         self.sequences = self.data[seq_col].values
@@ -127,13 +129,13 @@ class TCRpegModel:
             self.sequences_train_vj = train_data
             self.sequences_test_vj = test_data
                         
-            self.data_test = {
-                'seq': np.array(self.sequences_test),
-                'count': np.array(self.count)[test_idx],
-                'id': self.ids[test_idx],
-                'v': np.array(v_test),
-                'j': np.array(j_test)
-            }
+            # self.data_test = {
+            #     'seq': np.array(self.sequences_test),
+            #     'count': np.array(self.count)[test_idx],
+            #     'id': self.ids[test_idx],
+            #     'v': np.array(v_test),
+            #     'j': np.array(j_test)
+            # }
 
             self.data_test = {
                 # 'seq': [self.sequences_test, v_test, j_test],

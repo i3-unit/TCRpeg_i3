@@ -67,7 +67,7 @@ def identify_signature_sequences(structured_arrays_dict, reference_sample):
     return np.array(signature_sequences, dtype=[('id', '<U50'), ('sequence', '<U100'), ('pinfer', '<f4')])
 
 
-def identify_signature_sequences_and_update(structured_arrays_dict, reference_sample):
+def identify_signature_sequences_and_update(structured_arrays_dict, reference_sample, groupby_vj=True):
     # Concatenate all data into a single DataFrame, considering optional v and j gene information
     frames = []
     for sample, data in structured_arrays_dict.items():
@@ -78,7 +78,7 @@ def identify_signature_sequences_and_update(structured_arrays_dict, reference_sa
 
     # Define the grouping columns based on the available data
     group_columns = ['sequence']
-    if 'v' in all_data.columns and 'j' in all_data.columns:
+    if 'v' in all_data.columns and 'j' in all_data.columns and groupby_vj:
         group_columns += ['v', 'j']
 
     # Compute the max pinfer across samples for each sequence combination
@@ -238,9 +238,10 @@ class PinferCalculation:
         self.load_model(hidden_size=hidden_size, num_layers=num_layers)
         structured_pinfer = self.calculate_pinfer(sample_name=sample_name)
         return structured_pinfer
+#fix needs to compare for one parameters (same cell subset, same tissue)
 
     @staticmethod
-    def run_for_folder(data_dir, model_dir, output_dir, default_embedding_file=None, embedding_dir=None, seq_col='sequence', vj=False, signature=True, device='cpu'):
+    def run_for_folder(data_dir, model_dir, output_dir, default_embedding_file=None, embedding_dir=None, seq_col='sequence', vj=False, signature=True, metadata=None, filters=None, key_metadata='id', device='cpu'):
         # List all data files in the data directory
         data_files = sorted([os.path.join(data_dir, f) for f in os.listdir(data_dir) if f.endswith('.csv')])
 
@@ -253,6 +254,7 @@ class PinferCalculation:
             for data_file in data_files
             if os.path.exists(os.path.join(model_dir, f"{os.path.basename(data_file).split('.csv')[0]}.pth"))
         }
+        
         
         # Probability inference results
         p_infer_results = {}
