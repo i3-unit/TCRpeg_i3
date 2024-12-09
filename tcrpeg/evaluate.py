@@ -65,17 +65,19 @@ class evaluation:
         sum_p = np.sum(p_data)
         p_data = p_data / sum_p #normalized probability
 
-        batch_size = 2000
+        batch_size = min(len(seqs), 2000)
 
         record = np.zeros(len(seqs))
         seq_with_record = []
         with torch.no_grad():        
             for i in tqdm(range(int(len(seqs)/batch_size)+1)):
                 end = len(seqs) if (i+1) * batch_size > len(seqs) else (i+1) * batch_size
-                seq_batch = seqs[i * batch_size : end]     
+                seq_batch = seqs[i * batch_size : end] 
+                if len(seq_batch) == 0:
+                        continue    
                 if self.vj:
                     log_probs = self.model.sampling_tcrpeg_vj(seq_batch)
-                else:           
+                else:  
                     log_probs = self.model.sampling_tcrpeg(seq_batch) #change here
                 record[i*batch_size : end] = np.exp(log_probs)
                 seq_with_record.extend(list(zip(seq_batch, np.exp(log_probs))))
