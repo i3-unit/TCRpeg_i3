@@ -198,7 +198,8 @@ class TCRpegModel:
                             num_layers=num_layers, 
                             load_data=True, 
                             max_length=50,
-                            embedding_path='tcrpeg/data/embedding_32.txt',
+                            # embedding_path='tcrpeg/data/embedding_32.txt',
+                            embedding_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt',
                             path_train=self.sequences_train,
                             device=self.device)
             self.model.create_model()
