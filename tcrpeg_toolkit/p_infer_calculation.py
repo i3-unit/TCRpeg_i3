@@ -82,10 +82,11 @@ class TCRpegModel:
     
     def load_and_preprocess_data(self, seq_col='sequence', id_col='id', count_col='count', v_col='v', j_col='j', vj=False):
         self.data = load_data(self.input_file)
-        self.sequences = self.data[seq_col].values
+        
         # Lower case all columns names
         self.data.columns = map(str.lower, self.data.columns)
-
+        
+        self.sequences = self.data[seq_col].values
         # Check if V and J genes are present in the data
         self.vj = vj
         if self.vj:
@@ -272,12 +273,12 @@ class TCRpegModel:
         self.prepare_directories_and_filenames()
         self.load_and_preprocess_data(seq_col=seq_col, id_col=id_col, count_col=count_col, vj=vj)
         self.split_data(test_size=test_size)
-        self.train_word2vec(epochs=word2vec_epochs, batch_size=word2vec_batch_size,
-                            learning_rate=word2vec_learning_rate)
+        # self.train_word2vec(epochs=word2vec_epochs, batch_size=word2vec_batch_size,
+                            # learning_rate=word2vec_learning_rate)
         self.train_model(hidden_size=hidden_size, num_layers=num_layers, epochs=epochs, batch_size=batch_size,
                         learning_rate=learning_rate, vj=vj)
         self.probability_inference(min_count=min_count)
-        self.calculate_embeddings()
+        # self.calculate_embeddings()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='TCRpeg classification model.')
