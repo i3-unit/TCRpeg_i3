@@ -12,6 +12,7 @@ echo "Running script from $script_dir"
 # Set default values for command-line options
 input_dir=""
 output_dir=""
+embedding_file=""
 device="cpu"
 seq_col="sequence"
 count_col="count"
@@ -28,16 +29,17 @@ test_size=0.4
 vj=false
 
 # Parse command-line options
-while getopts 'i:o:d:s:c:I:w:e:b:l:H:n:B:L:t:vh' flag; do
+while getopts 'i:o:e:d:s:c:I:w:E:b:l:H:n:B:L:t:vh' flag; do
   case "${flag}" in
     i) input_dir="${OPTARG}" ;;
     o) output_dir="${OPTARG}" ;;
+    e) embedding_file="${OPTARG}" ;;
     d) device="${OPTARG}" ;;
     s) seq_col="${OPTARG}" ;;
     c) count_col="${OPTARG}" ;;
     I) id_col="${OPTARG}" ;;
     w) word2vec_epochs="${OPTARG}" ;;
-    e) epochs="${OPTARG}" ;;
+    E) epochs="${OPTARG}" ;;
     b) word2vec_batch_size="${OPTARG}" ;;
     l) word2vec_learning_rate="${OPTARG}" ;;
     H) hidden_size="${OPTARG}" ;;
@@ -46,14 +48,14 @@ while getopts 'i:o:d:s:c:I:w:e:b:l:H:n:B:L:t:vh' flag; do
     L) learning_rate="${OPTARG}" ;;
     t) test_size="${OPTARG}" ;;
     v) vj=true ;; 
-    h) echo "Usage: $0 -i input_dir -o output_dir -d device -s seq_col -c count_col -I id_col -w word2vec_epochs -e epochs -b word2vec_batch_size -l word2vec_learning_rate -H hidden_size -n num_layers -B batch_size -L learning_rate -t test_size -v use_vj" && exit 1 ;;
+    h) echo "Usage: $0 -i input_dir -o output_dir -e embedding_file -d device -s seq_col -c count_col -I id_col -w word2vec_epochs -E epochs -b word2vec_batch_size -l word2vec_learning_rate -H hidden_size -n num_layers -B batch_size -L learning_rate -t test_size -v use_vj" && exit 1 ;;
     *) echo "Unexpected option ${flag}" && exit 1 ;;
   esac
 done
 
 # Check if input_dir and output_dir are provided
 if [ -z "$input_dir" ] || [ -z "$output_dir" ]; then
-  echo "Usage: $0 -i input_dir -o output_dir -d device -s seq_col -c count_col -I id_col -w word2vec_epochs -e epochs -b word2vec_batch_size -l word2vec_learning_rate -H hidden_size -n num_layers -B batch_size -L learning_rate -t test_size"
+  echo "Usage: $0 -i input_dir -o output_dir -e embedding_file -d device -s seq_col -c count_col -I id_col -w word2vec_epochs -E epochs -b word2vec_batch_size -l word2vec_learning_rate -H hidden_size -n num_layers -B batch_size -L learning_rate -t test_size"
   exit 1
 fi
 
@@ -76,6 +78,7 @@ for file in "$input_dir"/*.csv; do
     python3 ${script_dir}/tcrpeg_toolkit/p_infer_calculation.py \
       --input "$file" \
       --output "$output_dir" \
+      --embedding_file "$embedding_file" \
       --device "${device:-cpu}" \
       --seq_col "${seq_col:-sequence}" \
       --count_col "${count_col:-count}" \
