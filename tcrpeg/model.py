@@ -19,7 +19,7 @@ class TCRpeg_model(nn.Module):
         self.embedding = embedding_layer
         self.embedding_size=  embedding_size
         self.hidden_size=hidden_size
-        
+
         self.decoder_rnn = nn.GRU(embedding_size,hidden_size,num_layers,dropout=dropout)
         self.num_layers = num_layers
         self.out_layer=  nn.Linear(hidden_size, 22)

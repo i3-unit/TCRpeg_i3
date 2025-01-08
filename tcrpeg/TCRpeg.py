@@ -53,6 +53,7 @@ class TCRpeg:
         self.embedding_size = embedding_size
         self.device = device
         self.dropout = dropout
+        self.embedding_path = embedding_path
 
         emb = np.array(
             pd.read_csv(embedding_path, sep=",", names=list(range(embedding_size + 1)))
@@ -249,7 +250,7 @@ class TCRpeg:
                 dropout=self.dropout,
                 num_layers=self.num_layers,
                 device=self.device
-                )
+            )
             self.vj=False
         model.train()
         if load:
