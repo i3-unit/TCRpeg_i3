@@ -41,9 +41,10 @@ np.random.seed(222)
 
 #todo check if better to separate model and p_infer in two classes
 class TCRpegModel:
-    def __init__(self, input_file, output_dir, device='cpu', name=None):
+    def __init__(self, input_file, output_dir, embedding_file=None, device='cpu', name=None):
         self.input_file = input_file
         self.output_dir = output_dir
+        self.embedding_file = embedding_file
         self.device = device
         self.data = None
         self.sequences = None
@@ -58,7 +59,7 @@ class TCRpegModel:
     def prepare_directories_and_filenames(self):
         # Create the output directory if it doesn't exist
         os.makedirs(self.output_dir, exist_ok=True)
-        
+       
         # Define subdirectories
         self.p_infer_dir = os.path.join(self.output_dir, "p_infer")
         self.embeddings_dir = os.path.join(self.output_dir, "embeddings")
@@ -172,7 +173,12 @@ class TCRpegModel:
         logging.info("Word2Vec model trained successfully.")
 
     def train_model(self, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4, vj=False, load=False, path=None):
-        logging.info("Training TCRpeg model...")
+        logging.info("Training TCRpeg model...")        
+        if self.embedding_file is None:
+            emb_file = f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt'
+        else:
+            emb_file = self.embedding_file
+
         if self.vj:
             # Update the V and J lists dynamically based on the dataset
             unique_vs = list(set(self.v_genes))
@@ -185,7 +191,7 @@ class TCRpegModel:
                             num_layers=num_layers, 
                             load_data=True, 
                             max_length=50,
-                            embedding_path='tcrpeg/data/embedding_32.txt',
+                            embedding_path=emb_file,
                             path_train=self.sequences_train_vj,  # Use VJ-specific data structure
                             device=self.device,
                             vs_list=unique_vs,
@@ -198,8 +204,7 @@ class TCRpegModel:
                             num_layers=num_layers, 
                             load_data=True, 
                             max_length=50,
-                            # embedding_path='tcrpeg/data/embedding_32.txt',
-                            embedding_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt',
+                            embedding_path=emb_file,
                             path_train=self.sequences_train,
                             device=self.device)
             self.model.create_model()
@@ -286,6 +291,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--input', help='Input file', required=True)
     parser.add_argument('-o', '--output', help='Directory to save embeddings, models and p-infer',
                         required=True)
+    parser.add_argument('-e', '--embedding', help='Embedding file to use for model training', default=None),
     parser.add_argument('-d', '--device', help='Device to use (cpu, cuda:0, mps)', default='cpu',
                         choices=["cpu", "cuda:0", "mps"])
     parser.add_argument('-s', '--seq_col', help='Sequence column required (default: sequence)',
@@ -338,7 +344,7 @@ if __name__ == "__main__":
         logging.warning("MPS device requested but not available. Falling back to CPU.")
         args.device = 'cpu'
 
-    model_infer = TCRpegModel(input_file=args.input, output_dir=args.output, device=args.device)
+    model_infer = TCRpegModel(input_file=args.input, output_dir=args.output, embedding_file = args.embedding, device=args.device)
     model_infer.run(seq_col=args.seq_col, id_col=args.id, count_col=args.count_col,
                     test_size=args.test_size, word2vec_epochs=args.word2vec_epochs,
                     word2vec_batch_size=args.word2vec_batch_size, word2vec_learning_rate=args.word2vec_learning_rate,
