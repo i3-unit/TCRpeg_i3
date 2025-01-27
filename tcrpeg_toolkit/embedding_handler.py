@@ -71,8 +71,8 @@ from tcrpeg_toolkit.utils import load_data
 class Embedding:
     def __init__(self, embeddings, ids=None, sequences=None):
         self.embeddings = embeddings
-        self.ids = ids
-        self.sequences = sequences
+        self.ids = np.array(ids) if ids is not None else None
+        self.sequences = np.array(sequences) if sequences is not None else None
 
     def __repr__(self):
         return f"Embedding(embeddings_shape={self.embeddings.shape}, ids_shape={self.ids.shape}, sequences_shape={self.sequences.shape if self.sequences is not None else 'None'})"
@@ -251,13 +251,14 @@ class EmbeddingHandler():
                 # self.metadata = self.metadata.set_index(self.key_metadata).loc[self.ids].reset_index()
                 # self.metadata = self.metadata.set_index(self.key_metadata).reindex(self.ids).reset_index()
                 # Convert to string and sort in one operation
+                #improve when metadata sort finish but all are nan except for id -> should be a warning and return None
                 self.metadata = (self.metadata
                                 .assign(**{self.key_metadata: lambda x: x[self.key_metadata].astype(str)})
                                 .set_index(self.key_metadata)
-                                .reindex(self.ids)
+                                .reindex([str(x) for x in self.ids])
                                 .reset_index())
-                # logging.info("Sorted metadata based on id.")
-                
+                logging.info("Sorted metadata based on id.")
+                #fix add a match of type ids: if series, numpy array, list -> will cause a problem 
             elif self.key_embedding == 'sequence':
                 # self.metadata = self.metadata.set_index(self.key_sequence).reindex(self.sequences).reset_index()
                 self.metadata = (self.metadata
@@ -267,7 +268,7 @@ class EmbeddingHandler():
                                 .reset_index())
                 
                 self.metadata.insert(0, 'id', self.ids) if 'id' not in self.metadata.columns else None
-                # logging.info("Sorted metadata based on sequence.")
+                logging.info("Sorted metadata based on sequence.")
 
             else:
                 raise ValueError("Invalid key_embedding. Choose either 'id' or 'sequence'.")
