@@ -68,11 +68,11 @@ else
 fi
 
 # Loop through all files in the input directory
-for file in "$input_dir"/*.csv; do
+for file in "$input_dir"/*.{csv,txt,tsv}; do
   if [ -f "$file" ]; then
     echo "Processing $file"
     # Run tcrpeg infer on the file
-    sample_name=$(basename "$file" .csv)
+    sample_name=$(basename "$file" | cut -d. -f1)
     python3 ${script_dir}/tcrpeg_toolkit/p_infer_calculation.py \
       --input "$file" \
       --output "$output_dir" \
