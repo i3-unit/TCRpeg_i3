@@ -69,6 +69,12 @@ else
   vj_flag=""
 fi
 
+if [ -n "$embedding_file" ]; then
+  embedding_file_flag="--embedding "${embedding_file:-$embedding_file}""
+else
+  embedding_file_flag=""
+fi
+
 # Loop through all files in the input directory
 for file in "$input_dir"/*.{csv,txt,tsv}; do
   if [ -f "$file" ]; then
@@ -78,7 +84,7 @@ for file in "$input_dir"/*.{csv,txt,tsv}; do
     python3 ${script_dir}/tcrpeg_toolkit/p_infer_calculation.py \
       --input "$file" \
       --output "$output_dir" \
-      --embedding_file "$embedding_file" \
+      $embedding_file_flag \
       --device "${device:-cpu}" \
       --seq_col "${seq_col:-sequence}" \
       --count_col "${count_col:-count}" \

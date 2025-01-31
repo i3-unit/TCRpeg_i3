@@ -41,10 +41,10 @@ np.random.seed(222)
 
 #todo check if better to separate model and p_infer in two classes
 class TCRpegModel:
-    def __init__(self, input_file, output_dir, embedding_file=None, device='cpu', name=None):
+    def __init__(self, input_file, output_dir, device='cpu', name=None):
         self.input_file = input_file
         self.output_dir = output_dir
-        self.embedding_file = embedding_file
+        self.embedding_file = None
         self.device = device
         self.data = None
         self.sequences = None
@@ -172,12 +172,14 @@ class TCRpegModel:
                                record_path=f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt')
         logging.info("Word2Vec model trained successfully.")
 
-    def train_model(self, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4, vj=False, load=False, path=None):
+    def train_model(self, embedding_file, hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4, vj=False, load=False, path=None):
         logging.info("Training TCRpeg model...")        
-        if self.embedding_file is None:
-            emb_file = f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt'
+        if embedding_file is None:
+            self.embedding_file = f'{self.embeddings_dir}/word2vec_aa/{self.input_name}_aa.txt'
         else:
-            emb_file = self.embedding_file
+            self.embedding_file = embedding_file
+        
+        logging.info(f"Embedding file : {self.embedding_file}")
 
         if self.vj:
             # Update the V and J lists dynamically based on the dataset
@@ -191,7 +193,7 @@ class TCRpegModel:
                             num_layers=num_layers, 
                             load_data=True, 
                             max_length=50,
-                            embedding_path=emb_file,
+                            embedding_path=self.embedding_file,
                             path_train=self.sequences_train_vj,  # Use VJ-specific data structure
                             device=self.device,
                             vs_list=unique_vs,
@@ -204,7 +206,7 @@ class TCRpegModel:
                             num_layers=num_layers, 
                             load_data=True, 
                             max_length=50,
-                            embedding_path=emb_file,
+                            embedding_path=self.embedding_file,
                             path_train=self.sequences_train,
                             device=self.device)
             self.model.create_model()
@@ -272,7 +274,7 @@ class TCRpegModel:
         np.save(f'{self.embeddings_dir}/structured/{self.input_name}_structured_embeddings.npy', structured_array)
         logging.info("Embeddings calculated successfully.")
 
-    def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2,
+    def run(self, seq_col='sequence', id_col='id', count_col='count', test_size=0.2, embedding_file = None,
             word2vec_epochs=10, word2vec_batch_size=100, word2vec_learning_rate=1e-4,
             hidden_size=128, num_layers=5, epochs=20, batch_size=100, learning_rate=1e-4,
             min_count=1, vj=False):
@@ -281,7 +283,9 @@ class TCRpegModel:
         self.split_data(test_size=test_size)
         # self.train_word2vec(epochs=word2vec_epochs, batch_size=word2vec_batch_size,
                             # learning_rate=word2vec_learning_rate)
-        self.train_model(hidden_size=hidden_size, num_layers=num_layers, epochs=epochs, batch_size=batch_size,
+        self.train_word2vec(epochs=word2vec_epochs, batch_size=word2vec_batch_size,
+                            learning_rate=word2vec_learning_rate)
+        self.train_model(embedding_file=embedding_file, hidden_size=hidden_size, num_layers=num_layers, epochs=epochs, batch_size=batch_size,
                         learning_rate=learning_rate, vj=vj)
         self.probability_inference(min_count=min_count)
         # self.calculate_embeddings()
@@ -344,8 +348,8 @@ if __name__ == "__main__":
         logging.warning("MPS device requested but not available. Falling back to CPU.")
         args.device = 'cpu'
 
-    model_infer = TCRpegModel(input_file=args.input, output_dir=args.output, embedding_file = args.embedding, device=args.device)
-    model_infer.run(seq_col=args.seq_col, id_col=args.id, count_col=args.count_col,
+    model_infer = TCRpegModel(input_file=args.input, output_dir=args.output,  device=args.device)
+    model_infer.run(seq_col=args.seq_col, id_col=args.id, count_col=args.count_col, embedding_file = args.embedding,
                     test_size=args.test_size, word2vec_epochs=args.word2vec_epochs,
                     word2vec_batch_size=args.word2vec_batch_size, word2vec_learning_rate=args.word2vec_learning_rate,
                     hidden_size=args.hidden_size, num_layers=args.num_layers, epochs=args.epochs,
