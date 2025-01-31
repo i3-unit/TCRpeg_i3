@@ -39,21 +39,24 @@ class Distribution:
 
 #todo Maybe separate distribution handler and distribution
 
+#todo maybe have the load be in init
 class DistributionLoader:
-    def __init__(self, folder_path):
-        self.folder_path = folder_path
+    def __init__(self, data):
+        self.data = data
         
         self.distributions = []
         self.ids = []
 
+        self.load()
+
     def __repr__(self):
-        return f"DistributionLoader(distributions={len(self.distributions)}, folder_path={self.folder_path})"
+        return f"DistributionLoader(distributions={len(self.distributions)}, data={self.data})"
 
     def load_distributions(self, distribution_type='p_infer', message=False) -> Distribution:
-        files = [f for f in os.listdir(self.folder_path) if f.endswith('.npy')]
+        files = [f for f in os.listdir(self.data) if f.endswith('.npy')]
         
         for file_name in files:
-            file_path = os.path.join(self.folder_path, file_name)
+            file_path = os.path.join(self.data, file_name)
             data = np.load(file_path)
 
             distribution = self._extract_slot(data, distribution_type, file_name, message)
@@ -138,8 +141,8 @@ class MetadataLoader:
 
 
 class DistributionDataLoader:
-    def __init__(self, folder_path, metadata=None):
-        self.distribution_loader = DistributionLoader(folder_path)
+    def __init__(self, data, metadata=None):
+        self.distribution_loader = DistributionLoader(data)
         self.metadata_loader = MetadataLoader(metadata)
 
     def load(self, distribution_type='p_infer', message=False) -> Distribution:
@@ -334,8 +337,65 @@ class DistributionProcessor:
 #         self.distance_metric = metric
 #         return self.distance_matrix
 
+#improve can go in a separate base class 
+# class DataWrapper:
+    # def __init__(self, distributions, ids):
+    #     self.distributions = distributions
+    #     self.ids = ids
 
 #todo separate distribution distance and metadata from plot
+class DistributionDensityPlot:
+    def __init__(self, data, distribution_type='p_infer'):
+        self.data = data
+        self.distribution_type = distribution_type
+        
+        self.distributions = []
+        self.ids = []
+
+        self._load_distributions()
+
+    def _load_distributions(self):
+        if self.data is None:
+            raise ValueError("No data provided. Load data first.")
+        #improve add check if instance of self.tcrepeg_toolkit.distribution
+        if not all(hasattr(self.data, attr) for attr in ['distributions', 'ids']):
+            try:
+                self.data = DistributionLoader(self.data).load(distribution_type=self.distribution_type)
+            except:
+                logging.error("Failed to load data. Check the provided data.")
+                return None
+
+        self.distributions = self.data.distributions
+        self.ids = self.data.ids
+
+    def plot_density(self, labels=None, colors=None, log_scale=True):
+        """
+        Generate density plots for the distributions.
+
+        Args:
+            labels (list): List of labels for the distributions.
+            colors (list): List of colors for the plots.
+            log_scale (bool): Whether to use log-transformed data.
+        """
+        if labels is None:
+            labels = self.ids
+        if colors is None:
+            colors = plt.cm.tab10(range(len(self.distributions)))
+        # Set style to white grid
+        sns.set_style("white")
+
+        plt.figure(figsize=(8, 6))
+        for dist, label, color in zip(self.distributions, labels, colors):
+            data = np.log(dist) if log_scale else dist
+            sns.kdeplot(data, label=label, color=color)
+
+        plt.xlabel('Log $P_{infer}$' if log_scale else '$P_{infer}$', fontsize=14)
+        plt.ylabel('Density', fontsize=14)
+        plt.legend(title='Distributions', fontsize=12)
+        plt.title('Density Plot', fontsize=16)
+        plt.grid(alpha=0.3)
+        plt.tight_layout()
+        plt.show()
 
 class DistributionHeatmapPlotter:
     # Class variable 
@@ -572,7 +632,7 @@ class DistributionHeatmapPlotter:
         
         if self.metadata is None:
             g = sns.clustermap(self.distance_matrix_annotated, 
-                        cmap="vlag",
+                        cmap=cmap,
                         vmin = v_min,
                         vmax = v_max,
                         center=center,
@@ -787,14 +847,14 @@ class TCRpegInference:
 # Usage example
 if __name__ == "__main__":
     # Step 1: Process numpy files
-    folder_path = '/Users/celinebalaa/Desktop/thesis/tmp/gliph_signature_downsampled/data/results_p_infer/top_data_sampled/p_infer'
+    data = '/Users/celinebalaa/Desktop/thesis/tmp/gliph_signature_downsampled/data/results_p_infer/top_data_sampled/p_infer'
 
     # Using structured array
-    structured_data = process_numpy_files(folder_path, use_structured_array=True)
+    structured_data = process_numpy_files(data, use_structured_array=True)
     tcrpeg_structured = TCRPEGInference(structured_data)
     
     # Using regular array
-    data_array, sample_ids = process_numpy_files(folder_path, use_structured_array=False)
+    data_array, sample_ids = process_numpy_files(data, use_structured_array=False)
     tcrpeg_regular = TCRPEGInference(data_array, sample_ids)
     
 
