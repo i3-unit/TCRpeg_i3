@@ -77,10 +77,11 @@ class TCRpeg:
 
         # V  gene list for mouse
         trbv_default_mice =  [
-        'TRBV1', 'TRBV2', 'TRBV3', 'TRBV4', 'TRBV5', 'TRBV6', 'TRBV7', 'TRBV8', 'TRBV9', 'TRBV10',
-        'TRBV11', 'TRBV12-1', 'TRBV13-1', 'TRBV12-2', 'TRBV13-2', 'TRBV12-3', 'TRBV13-3', 'TRBV14',
-        'TRBV15', 'TRBV16', 'TRBV17', 'TRBV18', 'TRBV19', 'TRBV20', 'TRBV21', 'TRBV22', 'TRBV23',
-        'TRBV24', 'TRBV25', 'TRBV26', 'TRBV27', 'TRBV28', 'TRBV29', 'TRBV30', 'TRBV31'
+        'TRBV1', 'TRBV2', 'TRBV3', 'TRBV4', 'TRBV5', 
+        'TRBV12-1', 'TRBV13-1', 'TRBV12-2', 'TRBV13-2',
+        'TRBV12-3', 'TRBV13-3', 'TRBV14',
+        'TRBV15', 'TRBV16', 'TRBV17',  'TRBV19', 'TRBV23',
+        'TRBV26', 'TRBV29', 'TRBV30', 'TRBV31'
         ]
 
         # Unique V genes
@@ -91,8 +92,8 @@ class TCRpeg:
 
         # J gene list for mouse
         trbj_default_mice = [
-            'TRBJ1-1', 'TRBJ1-2', 'TRBJ1-3', 'TRBJ1-4', 'TRBJ1-5', 'TRBJ1-6', 'TRBJ1-7',
-            'TRBJ2-1', 'TRBJ2-2', 'TRBJ2-3', 'TRBJ2-4', 'TRBJ2-5', 'TRBJ2-6', 'TRBJ2-7'
+            'TRBJ1-1', 'TRBJ1-2', 'TRBJ1-3', 'TRBJ1-4', 'TRBJ1-5',
+            'TRBJ2-1', 'TRBJ2-2', 'TRBJ2-3', 'TRBJ2-4', 'TRBJ2-5', 'TRBJ2-7'
         ]
 
         # Unique J genes
