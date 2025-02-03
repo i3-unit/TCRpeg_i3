@@ -1,5 +1,5 @@
-id, tissue, cell_subset
-sample_1, PLN, CD8
-sample_2, RLN, CD8
-sample_3, PLN, amTregs
-sample_4, RLN, amTregs
+id,tissue,cell_subset
+sample_1,PLN,CD8
+sample_2,RLN,CD8
+sample_3,PLN,amTregs
+sample_4,RLN,amTregs
