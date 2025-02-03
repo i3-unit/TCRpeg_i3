@@ -37,6 +37,25 @@ class Distribution:
                f"distance_metric={self.distance_metric}, " \
                f"metadata={self.metadata.shape if self.metadata is not None else None})"
 
+    def filter_by_ids(self, ids):
+        """
+        Filters the distributions by the given IDs.
+        Args:
+            filter (list): A list of IDs to filter the distributions by.
+        Returns:
+            Distribution: A new Distribution object containing only the filtered distributions and IDs.
+         """
+
+        filtered_distributions = []
+        filtered_ids = []
+        
+        for i, id_name in enumerate(self.ids):
+            if id_name in ids:
+                filtered_distributions.append(self.distributions[i])
+                filtered_ids.append(id_name)
+
+        return self.__class__(filtered_distributions, filtered_ids)
+
 #todo Maybe separate distribution handler and distribution
 
 #todo maybe have the load be in init
@@ -47,7 +66,7 @@ class DistributionLoader:
         self.distributions = []
         self.ids = []
 
-        self.load()
+        # self.load()
 
     def __repr__(self):
         return f"DistributionLoader(distributions={len(self.distributions)}, data={self.data})"
@@ -99,6 +118,28 @@ class DistributionLoader:
         self.load_distributions(distribution_type, message)
 
         return Distribution(self.distributions, self.ids, distribution_type=distribution_type)
+
+    def filter_by_ids(self, ids) -> Distribution:
+        """
+        Filters the distributions by the given IDs.
+        Args:
+            filter (list): A list of IDs to filter the distributions by.
+        Returns:
+            Distribution: A new Distribution object containing only the filtered distributions and IDs.
+         """
+
+        filtered_distributions = []
+        filtered_ids = []
+        
+        for i, id in enumerate(self.ids):
+            if id in ids:
+                filtered_distributions.append(self.distributions[i])
+                filtered_ids.append(id)
+
+        return Distribution(filtered_distributions, filtered_ids)
+#improve change where DistributionLoader is being used and move the logic of filter by ids to Distribution only        
+#fix change all list of distributions and ids to numpy array
+
 
 #todo this can go in utils and be used in other places
 class MetadataLoader:
@@ -190,6 +231,28 @@ class DistributionProcessor:
         self.distributions = self.data.distributions
         self.ids = self.data.ids
 
+    def filter_by_ids(self, ids) -> Distribution:
+        """
+        Filters the distributions by the given IDs.
+        Args:
+            filter (list): A list of IDs to filter the distributions by.
+        Returns:
+            Distribution: A new Distribution object containing only the filtered distributions and IDs.
+         """
+
+        filtered_distributions = []
+        filtered_ids = []
+
+        for i, id in enumerate(self.ids):
+            if id in ids:
+                filtered_distributions.append(self.distributions[i])
+                filtered_ids.append(id)
+        self.data = Distribution(filtered_distributions, filtered_ids, distribution_type=self.distribution_type)
+        self.distributions = filtered_distributions
+        self.ids = filtered_ids
+
+        return Distribution(filtered_distributions, filtered_ids)
+
     def pad_and_normalize_distributions(self, epsilon=1e-6):
         # Determine the maximum length of any distribution in the list
         max_length = max(len(dist) for dist in self.distributions)
@@ -267,7 +330,7 @@ class DistributionProcessor:
                 f"distance_matrix={self.distance_matrix.shape if self.distance_matrix is not None else None} " \
                 f"distance_metric={self.distance_metric})"
 
-    def run(self, padding=True, smoothing=True, distance_metric='jsd', **kwargs):
+    def run(self, padding=True, smoothing=True, distance_metric='jsd', filter_ids=None, **kwargs):
         """
         Run the distribution analyzer with optional padding, smoothing, and distance matrix calculation.
 
@@ -296,6 +359,9 @@ class DistributionProcessor:
         if len(self.distributions) == 0:
             logging.error("No distributions found in the provided data.")
             return None
+
+        if filter_ids:
+            self.filter_by_ids(filter_ids)
         
         if padding:
             self.pad_and_normalize_distributions()
@@ -397,6 +463,7 @@ class DistributionDensityPlot:
         plt.tight_layout()
         plt.show()
 
+#improve doesnt work with distribution data object
 class DistributionHeatmapPlotter:
     # Class variable 
     metric_ranges = {
