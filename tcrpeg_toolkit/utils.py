@@ -13,6 +13,7 @@ import numpy as np
 # Configure logging to display messages only
 logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
 
+
 def load_data(input_data, message=True):
     """
     Loads the input data from a specified source, which can be a CSV file, a Pandas DataFrame, or a numpy array.
@@ -31,7 +32,7 @@ def load_data(input_data, message=True):
     if input_data is None:
         logging.warning("No input data provided.") if message else None
         return None
-    
+
     if isinstance(input_data, pd.DataFrame):
         if message:
             logging.info("Data loaded from Pandas DataFrame.")
@@ -46,7 +47,7 @@ def load_data(input_data, message=True):
         try:
             data = np.load(input_data, allow_pickle=True)
             logging.info(f"Data loaded from {input_data}")
-            return data 
+            return data
         except FileNotFoundError:
             logging.error(f"File not found: {input_data}")
             raise FileNotFoundError(f"File not found: {input_data}")
@@ -75,11 +76,69 @@ def filter_kwargs_for_function(func, kwargs):
     return {key: value for key, value in kwargs.items() if key in valid_keys}
 
 
+def apply_grouping_and_filtering(df, groupby=None, filter_values=None, filters=None):
+    """
+    Apply grouping and filtering to a DataFrame with optional combined or separate logic.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        groupby (list, optional): List of columns to group by.
+        filter_values (dict, optional): Dictionary of filters (col -> values).
+        filters (dict, optional): Combined argument where keys are columns and values:
+                                  - Value to filter by.
+                                  - None to indicate grouping.
+    Returns:
+        dict: Grouped and filtered DataFrames.
+    """
+
+    # Transform groupby to list
+    groupby = groupby if isinstance(groupby, list) else [
+        groupby] if groupby else None
+
+    # Clean and lower columns
+    df.columns = df.columns.str.strip().str.lower()
+
+    # Clean all data from leading and trailing whitespaces
+    df = df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+
+    # Clean inputs
+    filter_values = {col.strip().lower(): val for col,
+                     val in filter_values.items()} if filter_values else {}
+    filters = {col.strip().lower(): val for col,
+               val in filters.items()} if filters else {}
+    groupby = [col.strip().lower() for col in groupby] if groupby else []
+
+    # Parse combined `filters` if provided
+    if filters:
+        logging.info("Applying combined filters...")
+        logging.info(f"Filters: {filters}")
+        groupby.extend([col for col, val in filters.items() if val is None])
+        filter_values.update(
+            {col: val for col, val in filters.items() if val is not None})
+
+    # Apply filtering
+    if filter_values:
+        logging.info("Applying filter values...")
+        logging.info(f"Filter values: {filter_values}")
+        mask = pd.Series([True] * len(df))
+        for col, val in filter_values.items():
+            mask &= df[col] == val
+        df = df[mask]
+
+    # Apply grouping
+    if groupby:
+        logging.info("Applying grouping...")
+        logging.info(f"Grouping by: {groupby}")
+        grouped = df.groupby(groupby)
+        return {group: group_df for group, group_df in grouped}
+    else:
+        return {'all': df}
+
 # def filter_kwargs_for_function(func, kwargs):
 #     sig = inspect.signature(func)
 #     parameters = sig.parameters
 #     accepts_var_keyword = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in parameters.values())
-    
+
 #     if accepts_var_keyword:
 #         # Function accepts **kwargs, pass all through
 #         return kwargs
